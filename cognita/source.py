@@ -19,7 +19,15 @@ from .type_finder import (
 
 @dataclass
 class PrebufferSource(SourceElement):
-    """Common base for sources that prebuffer a fixed number of bytes."""
+    """Common base for sources that prebuffer a fixed number of bytes.
+    
+    This source reads a chunk of data (prebuffer) from the URI at startup.
+    It then uses a HeaderAnalyzer (and optionally Ollama) to detect the content type (Caps).
+    Finally, it emits a payload containing:
+    - type_source: How the type was detected ("header" or "ollama").
+    - uri: The source URI.
+    - data: The prebuffered bytes.
+    """
 
     uri: str
     prebuffer_bytes: int = 65_535
@@ -51,9 +59,12 @@ class PrebufferSource(SourceElement):
         return uri
 
     def process(self) -> None:
+        """Read data, detect type, and push payload downstream."""
         data = self._read_prebuffer()
         caps = self.header_analyzer.detect(data)
         type_source = "header"
+        
+        # Fallback to Ollama if header detection fails
         if not caps:
             if not self.ollama_client:
                 raise TypeFinderError("Unknown format; Ollama fallback not configured")
@@ -75,12 +86,24 @@ class PrebufferSource(SourceElement):
 
 
 class TimeSeriesDataSource(PrebufferSource):
-    """Time-series oriented source (e.g., logs/sensor/CCTV feeds) with initial prebuffer."""
+    """Time-series oriented source (e.g., logs/sensor/CCTV feeds) with initial prebuffer.
+    
+    Currently identical to PrebufferSource, but semantically distinct.
+    Future extensions might include streaming or chunked reading.
+    """
 
 
 @dataclass
 class DiscreteDataSource(SourceElement):
-    """Discrete data source (e.g., regular files/blob URIs) that passes URI downstream."""
+    """Discrete data source (e.g., regular files/blob URIs) that passes URI downstream.
+    
+    Unlike PrebufferSource, this class does NOT read the file content or perform type detection.
+    It simply emits a payload containing the URI. Downstream elements (like Narrators)
+    are responsible for reading the content and determining if they can process it.
+    
+    This approach is more efficient for large files or when we only want to process
+    specific file types (filtering is done by downstream elements).
+    """
 
     uri: str
 
@@ -88,6 +111,7 @@ class DiscreteDataSource(SourceElement):
         super().__init__()
 
     def process(self) -> None:
+        """Emit URI payload downstream."""
         payload = {"uri": self.uri}
         for pad in self.pads:
             if pad.direction == PadDirection.SRC:
