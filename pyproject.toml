@@ -17,6 +17,7 @@ dependencies = []
 [project.scripts]
 typefinder = "tools.typefinder:main"
 imagenarrator = "tools.imagenarrator:main"
+image2spo = "tools.image2spo:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
