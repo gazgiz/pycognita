@@ -28,6 +28,12 @@ jobs:
         if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
         pip install pytest
 
+    - name: Lint with ruff
+      if: github.event_name == 'pull_request'
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        ruff check .
+
     - name: Run tests
       run: |
         pytest
