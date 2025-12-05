@@ -7,6 +7,8 @@ from .caps import Caps, caps_to_turtle, caps_triples
 from .pad import Pad, PadDirection
 from .pipeline import Pipeline, link_many
 from .image_narrator import ImageNarrator
+from .mailbox_narrator import MailboxNarrator
+from .narrator import Narrator
 from .sink import SilentSink
 from .source import DiscreteDataSource, TimeSeriesDataSource
 
@@ -20,6 +22,8 @@ __all__ = [
     "PadDirection",
     "Buffer",
     "ImageNarrator",
+    "MailboxNarrator",
+    "Narrator",
     "SilentSink",
     "DiscreteDataSource",
     "TimeSeriesDataSource",
