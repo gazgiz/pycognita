@@ -1,6 +1,8 @@
 # PyCognita
 
 ![CI](https://github.com/gazgiz/pycognita/actions/workflows/ci.yml/badge.svg)
+[![CLA assistant](https://cla-assistant.io/readme/badge/gazgiz/pycognita)](https://cla-assistant.io/gazgiz/pycognita)
+
 
 **Cognita™** is a lightweight, pipeline-based framework for intelligent file analysis and narration. Inspired by GStreamer, it allows you to chain processing steps to inspect, filter, and describe data using both deterministic methods and modern AI capabilities.
 
@@ -54,5 +56,3 @@ pipeline.run()
 - **Code of Conduct**: We follow the Contributor Covenant (see [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)).
 - **Security**: Report vulnerabilities to `inquiry@cleverplant.com` (see [SECURITY.md](SECURITY.md)).
 - **Licensing**: Dual-licensed under GPL-3.0-only (`LICENSE`) or Commercial (`LICENSE-COMMERCIAL.md`). Contributors must sign the [CLA](https://cla-assistant.io/gazgiz/pycognita).
-  [![CLA assistant](https://cla-assistant.io/readme/badge/gazgiz/pycognita)](https://cla-assistant.io/gazgiz/pycognita)
-
