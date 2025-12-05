@@ -1,5 +1,7 @@
 # PyCognita
 
+![CI](https://github.com/gazgiz/pycognita/actions/workflows/ci.yml/badge.svg)
+
 **Cognita™** is a lightweight, pipeline-based framework for intelligent file analysis and narration. Inspired by GStreamer, it allows you to chain processing steps to inspect, filter, and describe data using both deterministic methods and modern AI capabilities.
 
 ## Key Features
