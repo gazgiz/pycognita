@@ -53,5 +53,6 @@ pipeline.run()
 - **Contributing**: See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and guidelines.
 - **Code of Conduct**: We follow the Contributor Covenant (see [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)).
 - **Security**: Report vulnerabilities to `inquiry@cleverplant.com` (see [SECURITY.md](SECURITY.md)).
-- **Licensing**: Dual-licensed under GPL-3.0-only (`LICENSE`) or Commercial (`LICENSE-COMMERCIAL.md`). Contributors must sign the [CLA](CLA.md).
+- **Licensing**: Dual-licensed under GPL-3.0-only (`LICENSE`) or Commercial (`LICENSE-COMMERCIAL.md`). Contributors must sign the [CLA](https://cla-assistant.io/gazgiz/pycognita).
+  [![CLA assistant](https://cla-assistant.io/readme/badge/gazgiz/pycognita)](https://cla-assistant.io/gazgiz/pycognita)
 
