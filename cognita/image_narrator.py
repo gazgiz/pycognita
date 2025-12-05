@@ -7,67 +7,41 @@ import base64
 import os
 
 from .caps import Caps
-from .element import Element
+from .narrator import Narrator, TEXT_CAPS
 from .ollama import OllamaClient, OllamaError
-from .pad import PadDirection
 
 
-TEXT_CAPS = Caps(
-    media_type="text/plain",
-    name="plain-text",
-    description="Plain text produced by ImageNarrator.",
-    extensions=("txt",),
-    uri="urn:cognita:caps:plain-text",
-    broader=("urn:cognita:category:content",),
-)
-
-
-class ImageNarrator(Element):
-    """Consumes buffers, and for image-photo caps, asks Ollama to describe the image."""
+class ImageNarrator(Narrator):
+    """Consumes buffers, and for image-photo caps, asks Ollama to describe the image.
+    
+    Like MailboxNarrator, this supports both capped and uncapped (URI-only) payloads.
+    It uses a vision-capable Ollama model (default: qwen2.5vl:3b) to generate descriptions.
+    """
 
     def __init__(self, ollama_client: OllamaClient | None = None):
         super().__init__()
         # Default to a vision-capable model if none is provided.
         self.ollama_client = ollama_client or OllamaClient(model="qwen2.5vl:3b")
-        self._caps: Caps | None = None
 
-    def process(self) -> None:
-        # No-op: work is reactive in on_buffer.
-        return
-
-    def handle_event(self, pad, event: str, payload: object | None = None) -> None:
-        if event == "caps":
-            if not isinstance(payload, Caps):
-                raise TypeError("ImageNarrator caps event requires Caps payload")
-            pad.caps = payload
-            self._caps = payload
-            # Forward caps downstream.
-            for peer in (p for p in self.pads if p.direction == PadDirection.SRC and p.peer):
-                peer.peer.caps = payload
-                peer.peer.element.handle_event(peer.peer, event, payload)
-            return
-        return super().handle_event(pad, event, payload)
-
-    def on_buffer(self, pad, payload: object) -> None:
-        caps = self._caps or getattr(pad, "caps", None)
+    def _can_process(self, caps: Caps | None, payload: object) -> bool:
+        # 1. Capped mode: strictly check for image-photo.
+        if isinstance(caps, Caps):
+            return caps.name == "image-photo"
         
-        # If caps are present but not for a photo, pass through.
-        if isinstance(caps, Caps) and caps.name != "image-photo":
-            self._push_downstream(payload)
-            return
+        # 2. Uncapped mode: check if we have a URI.
+        # Note: We don't strictly verify file content here like MailboxNarrator does,
+        # because we rely on Ollama to handle (or reject) the image data later.
+        # This is a design choice: we could add _is_image() checks here if we wanted
+        # to be stricter.
+        return isinstance(payload, dict) and "uri" in payload
 
-        # If no caps and no URI, we can't proceed.
-        if not isinstance(caps, Caps):
-            if not isinstance(payload, dict) or "uri" not in payload:
-                raise RuntimeError("ImageNarrator requires caps or URI payload")
-
+    def _narrate(self, payload: object, caps: Caps | None) -> str | None:
+        """Generate a description of the image using Ollama."""
         if not isinstance(payload, dict):
-            self._push_downstream(payload)
-            return
+            return None
 
-        description = self._describe_image(payload.get("data"), payload.get("uri"))
-        self._announce_text_caps()
-        self._push_downstream(description)
+        # Extract data (if prebuffered) or read from URI.
+        return self._describe_image(payload.get("data"), payload.get("uri"))
 
     def _describe_image(self, data: bytes | None, uri: str | None) -> str:
         if not self.ollama_client:
@@ -99,14 +73,3 @@ class ImageNarrator(Element):
             return b""
         with open(path, "rb") as file:
             return file.read()
-
-    def _push_downstream(self, payload: object) -> None:
-        for pad in self.pads:
-            if pad.direction == PadDirection.SRC and pad.peer:
-                pad.peer.element.on_buffer(pad.peer, payload)
-
-    def _announce_text_caps(self) -> None:
-        self._caps = TEXT_CAPS
-        for pad in self.pads:
-            if pad.direction == PadDirection.SRC:
-                pad.set_caps(TEXT_CAPS, propagate=True)
