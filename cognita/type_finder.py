@@ -29,7 +29,59 @@ class HeaderDetector:
     caps: Caps
 
 
-# ... (Caps definitions omitted for brevity, they are self-explanatory) ...
+DOCUMENT_CAPS = Caps(
+    media_type="document",
+    name="document",
+    description="Document-like content (pdf, docx, txt, html).",
+    extensions=("pdf", "docx", "pptx", "xlsx", "txt", "md", "html"),
+    uri="urn:cognita:caps:document",
+    broader=("urn:cognita:category:content",),
+)
+
+IMAGE_CAPS = Caps(
+    media_type="image",
+    name="image-photo",
+    description="Still image or photo (png, jpeg, gif, webp).",
+    extensions=("png", "jpg", "jpeg", "gif", "webp"),
+    uri="urn:cognita:caps:image-photo",
+    broader=("urn:cognita:category:content",),
+)
+
+VIDEO_CAPS = Caps(
+    media_type="video",
+    name="video",
+    description="Video container (mp4/mov).",
+    extensions=("mp4", "m4v", "mov"),
+    uri="urn:cognita:caps:video",
+    broader=("urn:cognita:category:content",),
+)
+
+MAIL_CAPS = Caps(
+    media_type="mail",
+    name="mail",
+    description="Email message content (mbox/eml).",
+    extensions=("eml", "mbox"),
+    uri="urn:cognita:caps:mail",
+    broader=("urn:cognita:category:content",),
+)
+
+CALENDAR_CAPS = Caps(
+    media_type="calendar",
+    name="calendar",
+    description="Calendar data (ICS/vCalendar).",
+    extensions=("ics",),
+    uri="urn:cognita:caps:calendar",
+    broader=("urn:cognita:category:content",),
+)
+
+BINARY_CAPS = Caps(
+    media_type="binary",
+    name="binary-file",
+    description="Executable or opaque binary data (zip, elf, etc).",
+    extensions=None,
+    uri="urn:cognita:caps:binary",
+    broader=("urn:cognita:category:content",),
+)
 
 
 def _decode_lower(data: bytes, max_len: int = 2048) -> str:

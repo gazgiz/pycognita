@@ -10,10 +10,19 @@ from .pad import PadDirection
 TEXT_CAPS = Caps(
     media_type="text/plain",
     name="plain-text",
-    description="Plain text produced by a Narrator.",
+    description="Plain text content.",
     extensions=("txt",),
     uri="urn:cognita:caps:plain-text",
     broader=("urn:cognita:category:content",),
+)
+
+NARRATION_CAPS = Caps(
+    media_type="text/plain",
+    name="plain-text",
+    description="Machine-generated text description.",
+    extensions=("txt",),
+    uri="urn:cognita:caps:text:machine-narrated",
+    broader=("urn:cognita:caps:plain-text",),
 )
 
 
@@ -25,14 +34,14 @@ class Narrator(Element):
     1. Receive an incoming buffer (payload).
     2. Check if it can process that payload (via `_can_process`).
     3. If yes, generate a text description (via `_narrate`).
-    4. Wrap the description in a new payload with TEXT_CAPS and push it downstream.
+    4. Wrap the description in a new payload with NARRATION_CAPS and push it downstream.
     5. If no, pass the original payload downstream unchanged (passthrough).
     """
 
     def __init__(self) -> None:
         super().__init__()
         self._caps: Caps | None = None
-        self._output_caps = TEXT_CAPS
+        self._output_caps = NARRATION_CAPS
 
     def process(self) -> None:
         # No-op: work is reactive in on_buffer.
