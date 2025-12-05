@@ -1,0 +1,1 @@
+# Do not add GPL or GPL-family dependencies (project is dual-licensed).

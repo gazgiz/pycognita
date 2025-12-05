@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pycognita"
+version = "0.1.0"
+description = "Lightweight pipeline-inspired tools for file/type inspection."
+requires-python = ">=3.11"
+readme = "README.md"
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+]
+dependencies = []
+
+[project.scripts]
+typefinder = "tools.typefinder:main"
+imagenarrator = "tools.imagenarrator:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cognita*", "tools*"]
+
+[tool.setuptools]
+license-files = ["LICENSE", "LICENSE-COMMERCIAL.md"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+]
+select = [
+    "E4",  # pycodestyle errors related to imports
+    "E7",  # pycodestyle errors related to statements
+    "E9",  # pycodestyle errors that are likely bugs
+    "F",   # pyflakes
+    "B",   # bugbear: common pitfalls
+    "I",   # import sorting
+    "UP",  # pyupgrade: modern syntax
+    "C4",  # comprehension best practices
+    "SIM", # simplify overly complex code
+    "RUF", # Ruff-specific rules
+]
