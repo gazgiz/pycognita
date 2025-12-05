@@ -1,29 +1,55 @@
-# pycognita
+# PyCognita
 
-Cognita™ is a lightweight framework designed for flexible file tooling using GStreamer-inspired pipelines. By chaining processing steps, Cognita™ allows for robust file analysis and manipulation. The project combines traditional deterministic methods with modern AI capabilities to handle data more intelligently.
+**Cognita™** is a lightweight, pipeline-based framework for intelligent file analysis and narration. Inspired by GStreamer, it allows you to chain processing steps to inspect, filter, and describe data using both deterministic methods and modern AI capabilities.
 
-Lightweight, GStreamer-inspired pipelines for file tooling. The initial tool is a `TypeFinder` that inspects a file header and, if needed, asks an Ollama model to guess the type and MIME.
+## Key Features
+
+- **Pipeline Architecture**: Flexible, chainable elements (Source -> Filter -> Sink) for processing data streams.
+- **Hybrid Type Detection**: Robust file type detection using header heuristics (including mbox, EML, PDF, images) with an AI fallback (Ollama) for unknown types.
+- **AI-Powered Narration**:
+    - **ImageNarrator**: Uses Vision LLMs (via Ollama) to generate detailed descriptions of images.
+    - **MailboxNarrator**: Parses and summarizes email archives (mbox/EML) into readable text.
+- **Extensible**: Easy to create new `Narrator` subclasses for custom content types.
 
 ## Structure
-- `cognita/`: Cognita™ library code (e.g., `cognita.pipeline`, `cognita.type_finder`, `cognita.ollama`, `cognita.caps`).
-- `tools/`: CLI tools (e.g., `cognita_tools.typefinder`).
-- `requirements-dev.txt`, `pyproject.toml` at repo root.
+
+- `cognita/`: Core library code.
+    - `pipeline.py`: Pipeline orchestration.
+    - `source.py`: Data sources (`DiscreteDataSource`, `TimeSeriesDataSource`).
+    - `narrator.py`: Base class for content describers.
+    - `type_finder.py`: Heuristic and AI-based type detection.
+- `tools/`: CLI tools.
+    - `imagenarrator.py`: CLI for describing images.
 
 ## Usage
+
+### Installation
 ```bash
 python -m pip install -e .
-typefinder path/to/file.ext
 ```
 
-Flags:
-- `--no-ollama` to disable the AI fallback.
-- `--ollama-model` and `--ollama-url` to point at your Ollama instance (defaults: `llama3.1`, `http://localhost:11434`).
+### Image Narration CLI
+Describe an image using a local Ollama model:
+```bash
+python -m tools.imagenarrator path/to/image.jpg --ollama-model qwen2.5vl:3b
+```
 
-## Notes
-- Header detection covers common formats (PNG, JPEG, GIF, PDF, ZIP/OOXML, ELF, MP3, WAV, MP4). Unknown types rely on the model.
-- Ollama is queried with a JSON-only prompt; errors are surfaced rather than silently ignored.
-- CAPS can be serialized to Turtle with `cognita.caps.caps_to_turtle(caps)` for ontology-style integration (includes `rdfs:subClassOf` relations).
+### Library Example
+```python
+from cognita import Pipeline, DiscreteDataSource, ImageNarrator, SilentSink
 
-## Licensing
-- Dual-licensed: GPL-3.0-only (see `LICENSE`) or a commercial license (see `LICENSE-COMMERCIAL.md`).
-- Contributors must agree to the CLA (`CLA.md`) so contributions can be used under both licenses.
+pipeline = Pipeline([
+    DiscreteDataSource("path/to/image.jpg"),
+    ImageNarrator(),  # Uses default Ollama model
+    SilentSink()      # Prints output
+])
+pipeline.run()
+```
+
+## Community & Legal
+
+- **Contributing**: See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and guidelines.
+- **Code of Conduct**: We follow the Contributor Covenant (see [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)).
+- **Security**: Report vulnerabilities to `inquiry@cleverplant.com` (see [SECURITY.md](SECURITY.md)).
+- **Licensing**: Dual-licensed under GPL-3.0-only (`LICENSE`) or Commercial (`LICENSE-COMMERCIAL.md`). Contributors must sign the [CLA](CLA.md).
+
