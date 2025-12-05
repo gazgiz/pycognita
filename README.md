@@ -13,6 +13,8 @@
 - **AI-Powered Narration**:
     - **ImageNarrator**: Uses Vision LLMs (via Ollama) to generate detailed descriptions of images.
     - **MailboxNarrator**: Parses and summarizes email archives (mbox/EML) into readable text.
+- **Knowledge Graph Extraction**:
+    - **TripleExtractor**: Extracts Subject-Predicate-Object (SPO) triples from text into Turtle (TTL) format, enabling automated Knowledge Graph construction.
 - **Extensible**: Easy to create new `Narrator` subclasses for custom content types.
 
 ## Structure
@@ -21,9 +23,11 @@
     - `pipeline.py`: Pipeline orchestration.
     - `source.py`: Data sources (`DiscreteDataSource`, `TimeSeriesDataSource`).
     - `narrator.py`: Base class for content describers.
+    - `triple_extractor.py`: Extracts RDF triples from text.
     - `type_finder.py`: Heuristic and AI-based type detection.
 - `tools/`: CLI tools.
     - `imagenarrator.py`: CLI for describing images.
+    - `image2spo.py`: CLI for converting images to Knowledge Graph triples.
 
 ## Usage
 
@@ -36,6 +40,15 @@ python -m pip install -e .
 Describe an image using a local Ollama model:
 ```bash
 python -m tools.imagenarrator path/to/image.jpg --ollama-model qwen2.5vl:3b
+```
+
+### Knowledge Graph Extraction CLI
+Extract SPO triples from an image (Image -> Description -> Triples):
+```bash
+image2spo path/to/image.jpg \
+  --ollama-vision-capable-model qwen2.5vl:3b \
+  --ollama-model mistral \
+  --tbox path/to/ontology.ttl
 ```
 
 ### Library Example
