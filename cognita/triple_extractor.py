@@ -145,12 +145,15 @@ class TripleExtractor(Element):
 
         prompt += (
             "\nExtraction Rules:\n"
-            "1. Extract ONLY direct relationships between entities found in the text.\n"
-            "2. FORBIDDEN meta-predicates: 'hasContent', 'hasDescription', 'hasObject', 'hasRelationship'.\n"
-            "   - BAD: ex:Image ex:hasObject 'Bag of berries'\n"
-            "   - GOOD: ex:Bag ex:contains ex:Berries\n"
-            "3. Structure: Entity -> Predicate -> Entity (or Literal).\n"
-            "4. Use standard vocabularies (e.g., schema:, foaf:, dc:) or ex: for specific relations.\n"
+            "1. The Subject IRI represents the **Image File** itself.\n"
+            "2. You MUST link identified main entities to this Subject IRI first.\n"
+            "   - Use `schema:image`, `ex:depicts`, or `ex:contains`.\n"
+            "   - Example: `<SubjectIRI> ex:depicts ex:PlasticBag`.\n"
+            "3. Then, extract relationships between entities.\n"
+            "   - Example: `ex:PlasticBag ex:contains ex:Mulberries`.\n"
+            "4. FORBIDDEN meta-predicates: 'hasContent', 'hasDescription' for visual objects.\n"
+            "5. Structure: Entity -> Predicate -> Entity (or Literal).\n"
+            "6. Use standard vocabularies (e.g., schema:, foaf:, dc:) or ex: for specific relations.\n"
         )
 
         prompt += (
