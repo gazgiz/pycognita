@@ -49,16 +49,18 @@ class OllamaClient:
     base_url: str = "http://localhost:11434"
     timeout: int = 10
 
-    def _request(self, prompt: str) -> str:
+    def _request(self, prompt: str, images: list[str] | None = None) -> str:
         """Send a prompt to the Ollama generate endpoint and return raw body."""
         url = f"{self.base_url.rstrip('/')}/api/generate"
-        payload = json.dumps(
-            {
-                "model": self.model,
-                "prompt": prompt,
-                "stream": False,
-            }
-        ).encode("utf-8")
+        payload_dict = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": False,
+        }
+        if images:
+            payload_dict["images"] = images
+
+        payload = json.dumps(payload_dict).encode("utf-8")
         request = urllib.request.Request(
             url,
             data=payload,

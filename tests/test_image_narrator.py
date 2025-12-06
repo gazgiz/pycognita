@@ -43,8 +43,15 @@ def test_narrate_success(mock_ollama):
         result = narrator._narrate({"uri": "test.jpg"}, None)
         assert result == "A beautiful sunset."
         mock_ollama._request.assert_called_once()
-        args, _ = mock_ollama._request.call_args
-        assert "Base64 (entire image): aW1hZ2UgZGF0YQ==\n" in args[0] # base64 of "image data"
+        args, kwargs = mock_ollama._request.call_args
+        
+        # Verify prompt structure
+        assert "Analyze this image objectively" in args[0]
+        assert "Base64 (entire image)" not in args[0] # Should NOT be in text
+        
+        # Verify image passed as argument
+        assert "images" in kwargs
+        assert kwargs["images"] == ["aW1hZ2UgZGF0YQ=="] # base64 of "image data"
 
 def test_narrate_missing_file(mock_ollama):
     narrator = ImageNarrator(ollama_client=mock_ollama)

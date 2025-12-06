@@ -54,16 +54,14 @@ class ImageNarrator(Narrator):
 
         b64 = base64.b64encode(data).decode("ascii")
         prompt = (
-            "You are an image description assistant. "
-            "Given a full image encoded in base64, write a detailed English description "
-            "of what the image contains. Include salient objects, people, setting, colors, and mood. "
-            "Write multiple sentences if needed, aiming for thoroughness without fluff.\n"
-            f"Image URI: {uri or 'unknown'}\n"
-            f"Base64 (entire image): {b64}\n"
-            "Provide the description only."
+            "Analyze this image objectively for a Knowledge Graph. "
+            "1. OCR: List any visible text verbatim.\n"
+            "2. Objects: List key objects/people and their visual attributes.\n"
+            "3. Relationships: Describe actions or spatial layout factually.\n"
+            "Output format: Pure text description. No markdown code blocks."
         )
         try:
-            return self.ollama_client._request(prompt)  # uses existing text generation endpoint
+            return self.ollama_client._request(prompt, images=[b64])  # Pass image separately
         except OllamaError as error:
             return f"[ollama error] {error}"
 

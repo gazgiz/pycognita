@@ -131,19 +131,24 @@ class TripleExtractor(Element):
     def _extract_triples(self, text: str, subject_iri: str) -> str:
         prompt = (
             "You are a Knowledge Graph extractor. "
-            "Extract Subject-Predicate-Object triples from the text below.\n"
-            f"Use the Subject IRI: <{subject_iri}>\n"
+            "Analyze the text below and extract Subject-Predicate-Object triples.\n"
+            f"Subject IRI: <{subject_iri}>\n"
         )
         
         if self.tbox_template:
-            prompt += f"Follow this Ontology (TBox) strictly:\n{self.tbox_template}\n"
+            prompt += f"Strictly use this Ontology (TBox) for predicates and classes:\n{self.tbox_template}\n"
         else:
-            prompt += "Use standard vocabulary (schema.org, foaf, dublin core) where possible.\n"
+            prompt += (
+                "Use standard vocabularies (e.g., schema:, foaf:, dc:) for predicates. "
+                "For unknown predicates, use a generic namespace ex:.\n"
+            )
 
         prompt += (
-            "\nOutput ONLY valid Turtle (TTL) syntax. "
-            "Do not include markdown code blocks. "
-            "Do not add explanations.\n\n"
+            "\nOutput Guidelines:\n"
+            "1. Format ONLY as valid Turtle (TTL).\n"
+            "2. Do not emit markdown blocks (```turtle ... ```).\n"
+            "3. If no triples can be extracted, output nothing.\n"
+            "4. Ensure all prefixes are defined (@prefix ...).\n\n"
             f"Text content:\n{text}"
         )
 
