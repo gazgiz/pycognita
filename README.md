@@ -1,6 +1,7 @@
 # PyCognita
 
 ![CI](https://github.com/gazgiz/pycognita/actions/workflows/ci.yml/badge.svg)
+[![codecov](https://codecov.io/gh/gazgiz/pycognita/graph/badge.svg?token=CODECOV_TOKEN)](https://codecov.io/gh/gazgiz/pycognita)
 [![CLA assistant](https://cla-assistant.io/readme/badge/gazgiz/pycognita)](https://cla-assistant.io/gazgiz/pycognita)
 
 
