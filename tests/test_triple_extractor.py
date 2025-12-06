@@ -88,9 +88,8 @@ def test_short_text_passthrough():
     # Ollama NOT called
     mock_ollama._request.assert_not_called()
     
-    # Original payload passed through
-    assert len(peer_element.received_buffers) == 1
-    assert peer_element.received_buffers[0] == payload
+    # Original payload passed through -> NO, dropped behavior
+    assert len(peer_element.received_buffers) == 0
 
 def test_ollama_error_passthrough():
     mock_ollama = MagicMock()
@@ -108,9 +107,8 @@ def test_ollama_error_passthrough():
     
     extractor.on_buffer(MockPad(PadDirection.SINK), "valid text")
     
-    # Original passed through on error
-    assert len(peer_element.received_buffers) == 1
-    assert peer_element.received_buffers[0] == "valid text"
+    # Original passed through on error -> NO, dropped behavior
+    assert len(peer_element.received_buffers) == 0
 
 def test_tbox_prompt_inclusion():
     mock_ollama = MagicMock()

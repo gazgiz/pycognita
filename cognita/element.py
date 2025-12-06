@@ -22,6 +22,10 @@ from .caps import Caps
 from .pad import Pad, PadDirection
 
 
+class CapsNegotiationError(Exception):
+    """Raised when elements cannot agree on Caps."""
+
+
 class Element:
     """Base processing element with dynamic pads.
 
@@ -59,7 +63,11 @@ class Element:
         raise NotImplementedError
 
     def handle_event(self, pad: Pad, event: str, payload: object | None = None) -> None:  # pragma: no cover - base hook
-        """Handle a generic pad event (e.g., caps negotiation)."""
+        """Handle a generic pad event (e.g., caps negotiation).
+        
+        Raises:
+            CapsNegotiationError: If incompatible caps are received.
+        """
         if event == "caps":
             if not isinstance(payload, Caps):
                 raise TypeError("caps event requires Caps payload")

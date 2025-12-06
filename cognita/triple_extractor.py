@@ -7,7 +7,7 @@ from datetime import datetime
 import uuid
 
 from .caps import Caps
-from .element import Element, PadDirection
+from .element import Element, PadDirection, CapsNegotiationError
 from .narrator import TEXT_CAPS
 from .ollama import OllamaClient, OllamaError
 
@@ -46,47 +46,69 @@ class TripleExtractor(Element):
     def process(self) -> None:
         pass  # Reactive element
 
+    def handle_event(self, pad, event: str, payload: object | None = None) -> None:
+        """Handle control events, enforcing strict Caps compatibility."""
+        if event == "caps":
+            if not isinstance(payload, Caps):
+                raise TypeError("TripleExtractor caps event requires Caps payload")
+            
+            # STRICT CHECK: Can we process these caps?
+            if not self._can_process(payload, None):
+                raise CapsNegotiationError(f"TripleExtractor cannot handle caps: {payload}")
+
+            # Store upstream caps (but don't propagate blindly, we are a converter)
+            pad.caps = payload
+            return
+        return super().handle_event(pad, event, payload)
+
     def on_buffer(self, pad, payload: object) -> None:
-        # 1. Check upstream caps
+        # 1. Check upstream caps (assumed negotiated)
         caps = getattr(pad, "caps", None)
         
-        # 2. Check if we can process (must be plain text or compatible string payload)
+        # Runtime check
         if not self._can_process(caps, payload):
-            self._push_passthrough(payload)
-            return
-
+             return
+ 
         # 3. Extract text
         text = self._extract_text(payload)
         if not text or len(text.strip()) < self.min_text_length:
-             self._push_passthrough(payload)
              return
-
+ 
         # 4. Generate IRI if needed
         iri = self.subject_iri or self._generate_iri()
-
+ 
         # 5. Extract triples
         try:
             ttl_output = self._extract_triples(text, iri)
             if ttl_output:
                 self._push_turtle(ttl_output)
-            else:
-                self._push_passthrough(payload)
         except OllamaError:
-            self._push_passthrough(payload)
-
-    def _can_process(self, caps: Caps | None, payload: object) -> bool:
+            # Runtime error, drop or log
+            pass
+ 
+    def _can_process(self, caps: Caps | None, payload: object | None) -> bool:
         # 1. Check strict caps compatibility
         if isinstance(caps, Caps) and caps.name != "plain-text":
             return False
-
-        # 2. Check permissive compatibility
+ 
+        # 2. Check permissive compatibility (if payload provided)
         if isinstance(caps, Caps) and caps.name == "plain-text":
             return True
-        if isinstance(payload, str):
-            return True
-        # Also accept standard Narrator output format
-        if isinstance(payload, dict) and "image_description" in payload:
+        if payload is not None:
+            if isinstance(payload, str):
+                return True
+            # Also accept standard Narrator output format
+            if isinstance(payload, dict) and "image_description" in payload:
+                 return True
+        elif caps is None:
+             # If strictly checking caps only (payload=None), we are stricter.
+             # We need explicit text caps or assumption of text.
+             # For now, if no caps provided at all, we might be lenient or strict.
+             # Let's be strict: if checking caps, and caps is None, return True 
+             # (allow permissive/uncapped) or False?
+             # Based on previous logic, we allowed uncapped.
              return True
+             
         return False
 
     def _extract_text(self, payload: object) -> str | None:

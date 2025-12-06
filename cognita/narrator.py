@@ -4,7 +4,7 @@ from __future__ import annotations
 """Base class for narrator elements that describe content."""
 
 from .caps import Caps
-from .element import Element
+from .element import Element, CapsNegotiationError
 from .pad import PadDirection
 
 TEXT_CAPS = Caps(
@@ -29,13 +29,9 @@ NARRATION_CAPS = Caps(
 class Narrator(Element):
     """Base element that consumes content and produces a text description.
     
-    This class serves as a foundation for all "Narrator" elements (e.g., ImageNarrator,
-    MailboxNarrator). Its primary responsibility is to:
-    1. Receive an incoming buffer (payload).
-    2. Check if it can process that payload (via `_can_process`).
-    3. If yes, generate a text description (via `_narrate`).
-    4. Wrap the description in a new payload with NARRATION_CAPS and push it downstream.
-    5. If no, pass the original payload downstream unchanged (passthrough).
+    This class serves as a foundation for all "Narrator" elements.
+    It enforces strict Caps negotiation: if upstream Caps are incompatible,
+    it raises CapsNegotiationError immediately.
     """
 
     def __init__(self) -> None:
@@ -44,69 +40,58 @@ class Narrator(Element):
         self._output_caps = NARRATION_CAPS
 
     def process(self) -> None:
-        # No-op: work is reactive in on_buffer.
-        # Narrators are filters, not sources, so they don't initiate processing loop.
         return
 
     def handle_event(self, pad, event: str, payload: object | None = None) -> None:
-        """Handle control events, primarily Caps negotiation."""
+        """Handle control events, enforcing strict Caps compatibility."""
         if event == "caps":
             if not isinstance(payload, Caps):
                 raise TypeError("Narrator caps event requires Caps payload")
             
+            # STRICT CHECK: Can we process these caps?
+            # Passing None for payload because we only check Type compatibility here.
+            if not self._can_process(payload, None):
+                raise CapsNegotiationError(f"{self.__class__.__name__} cannot handle caps: {payload}")
+
             # Store upstream caps
             pad.caps = payload
             self._caps = payload
             
-            # Forward caps downstream to peers.
-            # Note: If this narrator produces text, it will later announce TEXT_CAPS
-            # when it actually produces data. But we forward the original caps here
-            # in case we end up in passthrough mode.
-            for peer in (p for p in self.pads if p.direction == PadDirection.SRC and p.peer):
-                peer.peer.caps = payload
-                peer.peer.element.handle_event(peer.peer, event, payload)
+            # Forwarding caps downstream is problematic if we change the type (e.g. image -> text).
+            # We DONT forward the input caps here because we are a converter.
+            # We will emit our OWN output caps when we produce data.
             return
         return super().handle_event(pad, event, payload)
 
     def on_buffer(self, pad, payload: object) -> None:
-        """Handle incoming buffer. Subclasses should override _narrate.
+        """Handle incoming buffer.
         
-        Logic:
-        - Retrieve upstream caps (from event or pad).
-        - Check `_can_process(caps, payload)`:
-            - If False: Treat as unknown content, push original payload downstream.
-            - If True: Call `_narrate(payload, caps)`.
-        - If `_narrate` returns a string:
-            - Announce TEXT_CAPS (since we are changing the data type).
-            - Push the description string downstream.
+        Assumes Caps have been negotiated successfully.
         """
         caps = self._caps or getattr(pad, "caps", None)
         
+        # Runtime check: even if caps matched, does the payload have what we need?
+        # (e.g. URI exists)
         if not self._can_process(caps, payload):
-             self._push_downstream(payload)
+             # This is now a runtime error, or we silently drop. 
+             # For robustness, we'll log/drop, but strictly NO passthrough of raw data.
              return
 
         description = self._narrate(payload, caps)
         if description:
             self._announce_output_caps()
             self._push_downstream(description)
-        else:
-            # If narration failed or returned None, we currently do nothing.
-            # Alternatively, we could log a warning or push the original payload.
-            pass
 
-    def _can_process(self, caps: Caps | None, payload: object) -> bool:
+    def _can_process(self, caps: Caps | None, payload: object | None) -> bool:
         """Check if this narrator can process the given caps/payload.
         
-        Subclasses must override this to define what they accept.
+        Subclasses must override this.
+        If payload is None, this method should return True if the Caps *might* be supported.
         """
         raise NotImplementedError
 
     def _narrate(self, payload: object, caps: Caps | None) -> str | None:
-        """Generate a description for the payload.
-        
-        Subclasses must override this.
-        """
+        """Generate a description for the payload."""
         raise NotImplementedError
 
     def _push_downstream(self, payload: object) -> None:
