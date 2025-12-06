@@ -46,7 +46,7 @@ def test_narrate_success(mock_ollama):
         args, kwargs = mock_ollama._request.call_args
         
         # Verify prompt structure
-        assert "Analyze this image objectively" in args[0]
+        assert "atomic statements" in args[0]
         assert "Base64 (entire image)" not in args[0] # Should NOT be in text
         
         # Verify image passed as argument

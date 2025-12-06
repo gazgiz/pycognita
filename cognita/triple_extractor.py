@@ -144,6 +144,16 @@ class TripleExtractor(Element):
             )
 
         prompt += (
+            "\nExtraction Rules:\n"
+            "1. Extract ONLY direct relationships between entities found in the text.\n"
+            "2. FORBIDDEN meta-predicates: 'hasContent', 'hasDescription', 'hasObject', 'hasRelationship'.\n"
+            "   - BAD: ex:Image ex:hasObject 'Bag of berries'\n"
+            "   - GOOD: ex:Bag ex:contains ex:Berries\n"
+            "3. Structure: Entity -> Predicate -> Entity (or Literal).\n"
+            "4. Use standard vocabularies (e.g., schema:, foaf:, dc:) or ex: for specific relations.\n"
+        )
+
+        prompt += (
             "\nOutput Guidelines:\n"
             "1. Format ONLY as valid Turtle (TTL).\n"
             "2. Do not emit markdown blocks (```turtle ... ```).\n"

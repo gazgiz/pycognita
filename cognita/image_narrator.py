@@ -54,11 +54,14 @@ class ImageNarrator(Narrator):
 
         b64 = base64.b64encode(data).decode("ascii")
         prompt = (
-            "Analyze this image objectively for a Knowledge Graph. "
-            "1. OCR: List any visible text verbatim.\n"
-            "2. Objects: List key objects/people and their visual attributes.\n"
-            "3. Relationships: Describe actions or spatial layout factually.\n"
-            "Output format: Pure text description. No markdown code blocks."
+            "Analyze this image for Knowledge Graph extraction. "
+            "Identify distinct objects and their inter-relationships. "
+            "Output strictly as a list of atomic statements in this format:\n"
+            "- [Object A] [relationship] [Object B]\n"
+            "- [Object] is [Visual Attribute]\n"
+            "Example: '- PlasticBag contains Mulberries', '- Mulberries are Purple'.\n"
+            "Do NOT write paragraphs. Do NOT use generic terms like 'Image has object...'. "
+            "List separate facts."
         )
         try:
             return self.ollama_client._request(prompt, images=[b64])  # Pass image separately
