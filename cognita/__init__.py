@@ -9,6 +9,7 @@ from .pipeline import Pipeline, link_many
 from .image_narrator import ImageNarrator
 from .mailbox_narrator import MailboxNarrator
 from .narrator import Narrator
+from .text_narrator import TextNarrator
 from .sink import SilentSink
 from .source import DiscreteDataSource, TimeSeriesDataSource
 
@@ -24,6 +25,7 @@ __all__ = [
     "ImageNarrator",
     "MailboxNarrator",
     "Narrator",
+    "TextNarrator",
     "SilentSink",
     "DiscreteDataSource",
     "TimeSeriesDataSource",
