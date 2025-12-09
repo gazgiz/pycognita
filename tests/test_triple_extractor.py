@@ -124,3 +124,38 @@ def test_tbox_prompt_inclusion():
     args, _ = mock_ollama._request.call_args
     prompt = args[0]
     assert tbox in prompt
+
+def test_iri_generation_priority():
+    mock_ollama = MagicMock()
+    mock_ollama._request.return_value = "..."
+    extractor = TripleExtractor(ollama_client=mock_ollama, min_text_length=1)
+    
+    # 1. Test Fingerprint
+    caps_hash = Caps("text/plain", "plain-text", params={"fingerprint": "abc123hash"})
+    pad_hash = MockPad(PadDirection.SRC)
+    pad_hash.set_caps(caps_hash)
+    extractor._pads = [pad_hash] # Only looking at own pads? The code looks at `getattr(pad, "caps")` passed to on_buffer
+    
+    # Pass Sink pad with caps attached (simulation of upstream setting caps on sink pad of previous element?)
+    # Wait, on_buffer receives 'pad' which is the element's SINK pad.
+    sink_pad = MockPad(PadDirection.SINK)
+    sink_pad.caps = caps_hash
+    
+    extractor.on_buffer(sink_pad, "text")
+    
+    args, _ = mock_ollama._request.call_args
+    prompt = args[0]
+    assert "Subject IRI: <urn:cognita:content:abc123hash>" in prompt
+    
+    # 2. Test Message-ID (passed as fingerprint)
+    mock_ollama.reset_mock()
+    # Note: type_finder puts the raw Message-ID string into 'fingerprint'
+    caps_mail = Caps("text/plain", "plain-text", params={"fingerprint": "<msg-id-123>"})
+    sink_pad.caps = caps_mail
+    
+    extractor.on_buffer(sink_pad, "text")
+    
+    args, _ = mock_ollama._request.call_args
+    prompt = args[0]
+    # Check that heuristic detected it as mail
+    assert "Subject IRI: <urn:cognita:mail:msg-id-123>" in prompt

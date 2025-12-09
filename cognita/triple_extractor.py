@@ -14,10 +14,12 @@ from .ollama import OllamaClient, OllamaError
 TURTLE_CAPS = Caps(
     media_type="text/turtle",
     name="rdf-turtle",
-    description="RDF Triples in Turtle format.",
-    extensions=("ttl",),
-    uri="urn:cognita:caps:rdf-turtle",
-    broader=("urn:cognita:caps:plain-text",),
+    params={
+        "description": "RDF Triples in Turtle format.",
+        "extensions": ("ttl",),
+        "uri": "urn:cognita:caps:rdf-turtle",
+        "broader": ("urn:cognita:caps:plain-text",),
+    },
 )
 
 
@@ -75,7 +77,7 @@ class TripleExtractor(Element):
              return
  
         # 4. Generate IRI if needed
-        iri = self.subject_iri or self._generate_iri()
+        iri = self.subject_iri or self._generate_iri(caps)
  
         # 5. Extract triples
         try:
@@ -110,7 +112,7 @@ class TripleExtractor(Element):
              return True
              
         return False
-
+ 
     def _extract_text(self, payload: object) -> str | None:
         if isinstance(payload, str):
             return payload
@@ -123,8 +125,20 @@ class TripleExtractor(Element):
              except Exception:
                  return None
         return None
-
-    def _generate_iri(self) -> str:
+ 
+    def _generate_iri(self, caps: Caps | None = None) -> str:
+        # Strategy 1: Caps Fingerprint (Unified)
+        if caps and caps.params.get("fingerprint"):
+             fp = str(caps.params["fingerprint"])
+             # If it looks like a Message-ID (contains @ or starts with <), use mail URN
+             if fp.startswith("<") or "@" in fp:
+                 clean_id = fp.strip("<>")
+                 return f"urn:cognita:mail:{clean_id}"
+             else:
+                 # Assume hash
+                 return f"urn:cognita:content:{fp}"
+                 
+        # Strategy 2: Fallback to Timestamp
         timestamp = datetime.now().isoformat()
         return f"urn:cognita:generated:{timestamp}"
 
