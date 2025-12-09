@@ -93,8 +93,10 @@ class OllamaClient:
         return Caps(
             media_type=parsed.get("mime_type", "application/octet-stream"),
             name=parsed.get("type_name", "unknown"),
-            description=parsed.get("rationale"),
-            extensions=tuple(parsed.get("extensions", ())) or None,
+            params={
+                "description": parsed.get("rationale"),
+                "extensions": tuple(parsed.get("extensions", ())) or None,
+            },
         )
 
     def _build_prompt(self, file_path: str | None, header_hex: str, body_preview: str) -> str:

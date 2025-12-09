@@ -5,42 +5,42 @@ def test_detect_pdf():
     data = b"%PDF-1.4 header"
     caps = analyzer.detect(data)
     assert caps.name == "document"
-    assert "pdf" in caps.extensions
+    assert "pdf" in caps.params["extensions"]
 
 def test_detect_png():
     analyzer = HeaderAnalyzer()
     data = b"\x89PNG\r\n\x1a\n\x00\x00"
     caps = analyzer.detect(data)
     assert caps.name == "image-photo"
-    assert "png" in caps.extensions
+    assert "png" in caps.params["extensions"]
 
 def test_detect_jpeg():
     analyzer = HeaderAnalyzer()
     data = b"\xff\xd8\xff\xe0\x00"
     caps = analyzer.detect(data)
     assert caps.name == "image-photo"
-    assert "jpg" in caps.extensions
+    assert "jpg" in caps.params["extensions"]
 
 def test_detect_mbox():
     analyzer = HeaderAnalyzer()
     data = b"From user Fri Jul  8 12:00:00 2011\nSubject: Hi"
     caps = analyzer.detect(data)
     assert caps.name == "mail"
-    assert "mbox" in caps.extensions
+    assert "mbox" in caps.params["extensions"]
 
 def test_detect_eml():
     analyzer = HeaderAnalyzer()
     data = b"Subject: Hello\nFrom: sender@example.com\n"
     caps = analyzer.detect(data)
     assert caps.name == "mail"
-    assert "eml" in caps.extensions
+    assert "eml" in caps.params["extensions"]
 
 def test_detect_mp4():
     analyzer = HeaderAnalyzer()
     data = b"\x00\x00\x00\x18ftypmp42"
     caps = analyzer.detect(data)
     assert caps.name == "video"
-    assert "mp4" in caps.extensions
+    assert "mp4" in caps.params["extensions"]
 
 def test_detect_zip():
     analyzer = HeaderAnalyzer()
@@ -62,7 +62,7 @@ def test_detect_text_document():
     data = b"This is just some plain text content that is mostly ASCII." * 10
     caps = analyzer.detect(data)
     assert caps.name == "document"
-    assert "txt" in caps.extensions
+    assert "txt" in caps.params["extensions"]
 
 def test_detect_unknown():
     analyzer = HeaderAnalyzer()

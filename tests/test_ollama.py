@@ -51,8 +51,8 @@ def test_guess_file_type_success():
         
         assert caps.media_type == "text/plain"
         assert caps.name == "text"
-        assert caps.description == "It looks like text"
-        assert "txt" in caps.extensions
+        assert caps.params["description"] == "It looks like text"
+        assert "txt" in caps.params["extensions"]
 
 def test_guess_file_type_bad_json():
     client = OllamaClient()
