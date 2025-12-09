@@ -14,8 +14,13 @@
 - **AI-Powered Narration**:
     - **ImageNarrator**: Uses Vision LLMs (via Ollama) to generate detailed descriptions of images.
     - **MailboxNarrator**: Parses and summarizes email archives (mbox/EML) into readable text.
+- **Identity Aware**:
+    - **Automatic Fingerprinting**: Computes SHA-256 hashes for files to ensure stable identification.
+    - **Message-ID Extraction**: Native support for extracting Message-IDs from email files (eml/mbox), preserving their identity.
+- **RDF-Native Metadata**: Internally treats content metadata as an RDF Graph (using `rdflib`), enabling rich semantic negotiation and compatibility with standard ontologies (`schema.org`, `dcterms`).
 - **Knowledge Graph Extraction**:
-    - **TripleExtractor**: Extracts Subject-Predicate-Object (SPO) triples from text into Turtle (TTL) format, enabling automated Knowledge Graph construction.
+    - **TripleExtractor**: Extracts Subject-Predicate-Object (SPO) triples from text into Turtle (TTL) format.
+    - **Stable IRIs**: Automatically generates stable Subject IRIs (`urn:cognita:content:<hash>` or `urn:cognita:mail:<id>`) based on content identity.
 - **Extensible**: Easy to create new `Narrator` subclasses for custom content types.
 
 ## Structure
@@ -23,6 +28,7 @@
 - `cognita/`: Core library code.
     - `pipeline.py`: Pipeline orchestration.
     - `source.py`: Data sources (`DiscreteDataSource`, `TimeSeriesDataSource`).
+    - `caps.py`: RDF-native metadata container (`Caps`).
     - `narrator.py`: Base class for content describers.
     - `triple_extractor.py`: Extracts RDF triples from text.
     - `type_finder.py`: Heuristic and AI-based type detection.
