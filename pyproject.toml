@@ -13,13 +13,14 @@ classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
 ]
 dependencies = [
-    "rdflib>=7.1.1",
+    "rdflib>=7.5.0",
 ]
 
 [project.scripts]
 typefinder = "tools.typefinder:main"
 imagenarrator = "tools.imagenarrator:main"
 image2spo = "tools.image2spo:main"
+mbox2spo = "tools.mbox2spo:main"
 text2spo = "tools.text2spo:main"
 
 [tool.setuptools.packages.find]

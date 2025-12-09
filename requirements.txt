@@ -1,4 +1,4 @@
 # Do not add GPL or GPL-family dependencies (project is dual-licensed).
-rdflib>=7.1.1
+rdflib>=7.5.0
 
 
