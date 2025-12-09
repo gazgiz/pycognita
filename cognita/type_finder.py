@@ -9,9 +9,13 @@ Key pieces:
   - summarize_caps: emits a compact JSON summary for CLI output.
 """
 
+import hashlib
 import binascii
+import os
+import re
+from email.parser import BytesHeaderParser
 from dataclasses import dataclass
-from typing import Callable, List, Sequence
+from typing import Callable, List, Sequence, Any
 
 from .caps import Caps
 
@@ -19,7 +23,7 @@ from .caps import Caps
 @dataclass(frozen=True)
 class HeaderDetector:
     """Mapping of a detection function to its resulting Caps.
-    
+
     Each detector encapsulates a single heuristic check (e.g., "does it start with %PDF-?")
     and the corresponding Caps object to return if the check passes.
     """
@@ -32,55 +36,67 @@ class HeaderDetector:
 DOCUMENT_CAPS = Caps(
     media_type="document",
     name="document",
-    description="Document-like content (pdf, docx, txt, html).",
-    extensions=("pdf", "docx", "pptx", "xlsx", "txt", "md", "html"),
-    uri="urn:cognita:caps:document",
-    broader=("urn:cognita:category:content",),
+    params={
+        "description": "Document-like content (pdf, docx, txt, html).",
+        "extensions": ("pdf", "docx", "pptx", "xlsx", "txt", "md", "html"),
+        "uri": "urn:cognita:caps:document",
+        "broader": ("urn:cognita:category:content",),
+    },
 )
 
 IMAGE_CAPS = Caps(
     media_type="image",
     name="image-photo",
-    description="Still image or photo (png, jpeg, gif, webp).",
-    extensions=("png", "jpg", "jpeg", "gif", "webp"),
-    uri="urn:cognita:caps:image-photo",
-    broader=("urn:cognita:category:content",),
+    params={
+        "description": "Still image or photo (png, jpeg, gif, webp).",
+        "extensions": ("png", "jpg", "jpeg", "gif", "webp"),
+        "uri": "urn:cognita:caps:image-photo",
+        "broader": ("urn:cognita:category:content",),
+    },
 )
 
 VIDEO_CAPS = Caps(
     media_type="video",
     name="video",
-    description="Video container (mp4/mov).",
-    extensions=("mp4", "m4v", "mov"),
-    uri="urn:cognita:caps:video",
-    broader=("urn:cognita:category:content",),
+    params={
+        "description": "Video container (mp4/mov).",
+        "extensions": ("mp4", "m4v", "mov"),
+        "uri": "urn:cognita:caps:video",
+        "broader": ("urn:cognita:category:content",),
+    },
 )
 
 MAIL_CAPS = Caps(
     media_type="mail",
     name="mail",
-    description="Email message content (mbox/eml).",
-    extensions=("eml", "mbox"),
-    uri="urn:cognita:caps:mail",
-    broader=("urn:cognita:category:content",),
+    params={
+        "description": "Email message content (mbox/eml).",
+        "extensions": ("eml", "mbox"),
+        "uri": "urn:cognita:caps:mail",
+        "broader": ("urn:cognita:category:content",),
+    },
 )
 
 CALENDAR_CAPS = Caps(
     media_type="calendar",
     name="calendar",
-    description="Calendar data (ICS/vCalendar).",
-    extensions=("ics",),
-    uri="urn:cognita:caps:calendar",
-    broader=("urn:cognita:category:content",),
+    params={
+        "description": "Calendar data (ICS/vCalendar).",
+        "extensions": ("ics",),
+        "uri": "urn:cognita:caps:calendar",
+        "broader": ("urn:cognita:category:content",),
+    },
 )
 
 BINARY_CAPS = Caps(
     media_type="binary",
     name="binary-file",
-    description="Executable or opaque binary data (zip, elf, etc).",
-    extensions=None,
-    uri="urn:cognita:caps:binary",
-    broader=("urn:cognita:category:content",),
+    params={
+        "description": "Executable or opaque binary data (zip, elf, etc).",
+        "extensions": None,
+        "uri": "urn:cognita:caps:binary",
+        "broader": ("urn:cognita:category:content",),
+    },
 )
 
 
@@ -88,8 +104,6 @@ def _decode_lower(data: bytes, max_len: int = 2048) -> str:
     """Decode bytes to lowercase text for heuristic checks."""
     return preview_text(data, max_len).lower()
 
-
-import re
 
 def _is_calendar(data: bytes) -> bool:
     """Detect iCalendar content (ICS)."""
@@ -99,7 +113,7 @@ def _is_calendar(data: bytes) -> bool:
 
 def _is_mbox(data: bytes) -> bool:
     """Detect mbox format (From line with timestamp).
-    
+
     Mbox files typically start with a "From " line that acts as a separator.
     We check for this specific pattern to distinguish mbox from regular text.
     """
@@ -123,7 +137,7 @@ def _is_mbox(data: bytes) -> bool:
 
 def _is_eml(data: bytes) -> bool:
     """Detect EML/RFC822 format via headers.
-    
+
     We look for standard email headers like 'Subject:' and 'From:' in the first block.
     """
     header = _decode_lower(data)
@@ -160,7 +174,7 @@ def _is_mp4(data: bytes) -> bool:
 
 def _is_ooxml_zip(data: bytes) -> bool:
     """Detect Office Open XML archives (docx, pptx, xlsx).
-    
+
     These are ZIP files containing specific XML structures.
     """
     if not data.startswith(b"PK\x03\x04"):
@@ -180,7 +194,7 @@ def _is_elf(data: bytes) -> bool:
 
 def _is_text_document(data: bytes) -> bool:
     """Detect text-heavy files while excluding calendar markers.
-    
+
     Heuristic:
     1. Check if a high percentage of bytes are printable ASCII/whitespace.
     2. Ensure it's not a calendar file (which is also text but handled separately).
@@ -244,6 +258,52 @@ class HeaderAnalyzer:
             except Exception:  # pragma: no cover - defensive
                 continue
         return None
+
+
+def compute_identity(uri: str, caps: Caps) -> dict[str, Any]:
+    """Compute identification params for the given file and caps.
+
+    - For mail (EML), attempts to extract Message-ID.
+    - For others, computes SHA-256 fingerprint of the file.
+    """
+    params = {}
+    
+    path = uri[len("file://") :] if uri.startswith("file://") else uri
+    
+    # Only verify existence if we need to read it (which we do for both cases)
+    if not os.path.isfile(path):
+        return params
+
+    # Strategy 1: Mail Message-ID
+    if caps.name == "mail":
+        try:
+            with open(path, "rb") as f:
+                # Read enough for headers
+                head_sample = f.read(32_768)
+                parser = BytesHeaderParser()
+                msg = parser.parsebytes(head_sample)
+                msg_id = msg.get("Message-ID")
+                if msg_id:
+                     # USER REQUEST: Use Message-ID as the fingerprint for standard handling
+                     params["fingerprint"] = msg_id.strip()
+                     return params
+        except Exception:
+            pass # Fallback to fingerprint
+
+    # Strategy 2: Full SHA-256 Fingerprint
+    try:
+        sha256 = hashlib.sha256()
+        with open(path, "rb") as f:
+            while True:
+                chunk = f.read(65_536) # 64KB chunks
+                if not chunk:
+                    break
+                sha256.update(chunk)
+        params["fingerprint"] = sha256.hexdigest()
+    except OSError:
+        pass
+        
+    return params
 
 
 class TypeFinderError(RuntimeError):

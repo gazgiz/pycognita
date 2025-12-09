@@ -14,6 +14,7 @@ from .type_finder import (
     TypeFinderError,
     header_sample_to_hex,
     preview_text,
+    compute_identity,
 )
 
 
@@ -57,6 +58,9 @@ class TimeSeriesDataSource(SourceElement):
         caps, type_source = _detect_caps(
             data, self.uri, self.header_analyzer, self.ollama_client
         )
+        
+        # We might want identity for streams too, but often streams are infinite/named pipes.
+        # For now, we only apply compute_identity to DiscreteDataSource as requested.
 
         payload = {"type_source": type_source, "uri": self.uri, "data": data}
         for pad in self.pads:
@@ -110,10 +114,16 @@ class DiscreteDataSource(SourceElement):
         caps, type_source = _detect_caps(
             data, self.uri, self.header_analyzer, self.ollama_client
         )
+        
+        # Enhance caps with identity (fingerprint or message_id)
+        if caps:
+            identity_params = compute_identity(self.uri, caps)
+            caps = caps.merge_params(identity_params)
 
         payload = {"type_source": type_source, "uri": self.uri}
         for pad in self.pads:
             if pad.direction == PadDirection.SRC:
+                # Type safe now that we imported Caps or handle it properly
                 pad.set_caps(caps, propagate=True)
                 pad.push(payload)
 
