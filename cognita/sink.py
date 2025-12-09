@@ -13,9 +13,16 @@ class SilentSink(SinkElement):
 
     def __init__(self) -> None:
         super().__init__()
+        self.outputs: list[str] = []
 
     def process(self) -> None:
         return
+
+    @property
+    def output(self) -> str | None:
+        if not self.outputs:
+            return None
+        return "\n".join(self.outputs)
 
     def on_buffer(self, pad, payload: object) -> None:
         caps = getattr(pad, "caps", None)
@@ -23,10 +30,10 @@ class SilentSink(SinkElement):
             raise RuntimeError("SilentSink requires upstream pad caps")
         # Prefer direct text payload (e.g., from ImageNarrator) or narration field.
         if isinstance(payload, str):
-            self.output = payload
+            self.outputs.append(payload)
             return
         if isinstance(payload, dict) and payload.get("image_description"):
-            self.output = payload["image_description"]
+            self.outputs.append(payload["image_description"])
             return
         type_source = payload.get("type_source") if isinstance(payload, dict) else None
-        self.output = summarize_caps(caps, type_source=type_source)
+        self.outputs.append(summarize_caps(caps, type_source=type_source))

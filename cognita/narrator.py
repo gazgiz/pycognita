@@ -118,7 +118,7 @@ class Narrator(Element):
             if new_params:
                 final_caps = final_caps.merge_params(new_params)
         
-        self._caps = final_caps
+        # self._caps = final_caps  <-- BUG: Do not overwrite input caps
         for pad in self.pads:
             if pad.direction == PadDirection.SRC:
                 pad.set_caps(final_caps, propagate=True)
