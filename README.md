@@ -30,11 +30,14 @@
     - `source.py`: Data sources (`DiscreteDataSource`, `TimeSeriesDataSource`).
     - `caps.py`: RDF-native metadata container (`Caps`).
     - `narrator.py`: Base class for content describers.
+    - `mailbox_narrator.py`: Parses and summarizes email content.
+    - `mbox_parser.py`: Parses Mbox files into individual messages.
     - `triple_extractor.py`: Extracts RDF triples from text.
     - `type_finder.py`: Heuristic and AI-based type detection.
 - `tools/`: CLI tools.
     - `imagenarrator.py`: CLI for describing images.
     - `image2spo.py`: CLI for converting images to Knowledge Graph triples.
+    - `mbox2spo.py`: CLI for converting emails to Knowledge Graph triples.
 
 ## Usage
 
@@ -43,13 +46,11 @@
 python -m pip install -e .
 ```
 
-### Image Narration CLI
-Describe an image using a local Ollama model:
 ```bash
 python -m tools.imagenarrator path/to/image.jpg --ollama-model qwen2.5vl:3b
 ```
 
-### Knowledge Graph Extraction CLI
+### Knowledge Graph Extraction (Image)
 Extract SPO triples from an image (Image -> Description -> Triples):
 ```bash
 image2spo path/to/image.jpg \
@@ -57,6 +58,14 @@ image2spo path/to/image.jpg \
   --ollama-model mistral \
   --tbox path/to/ontology.ttl
 ```
+
+### Knowledge Graph Extraction (Email)
+Extract SPO triples from an Mbox or EML file (Mbox -> Messages -> TripleExtractor):
+```bash
+mbox2spo path/to/archive.mbox --ollama-model qwen2.5:3b
+```
+- **Caps-Aware**: Automatically switches prompting strategy to focus on email metadata (Sender, Recipient, Date) and avoid visual hallucinations.
+- **Identity Preserved**: Uses the email's Message-ID as a stable Subject IRI in the output graph.
 
 ### Library Example
 ```python
