@@ -141,12 +141,22 @@ class Caps:
         p["uri"] = str(self._node)
         
         # Generic params
+        generic_values = {}
         for s, p_pred, o in self._graph.triples((self._node, None, None)):
             if p_pred.startswith(PARAM):
                 key = str(p_pred).replace(str(PARAM), "")
-                # naive handling of multi-values: overwrite or list?
-                # For compatibility, let's just overwrite for now unless we need list
-                p[key] = str(o)
+                
+                val = o.value if isinstance(o, Literal) else str(o)
+                
+                if key not in generic_values:
+                    generic_values[key] = []
+                generic_values[key].append(val)
+        
+        for key, vals in generic_values.items():
+            if len(vals) == 1:
+                p[key] = vals[0]
+            else:
+                p[key] = vals # Keep as list if multiple
                 
         return p
 
