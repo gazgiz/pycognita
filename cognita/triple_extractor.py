@@ -81,7 +81,7 @@ class TripleExtractor(Element):
  
         # 5. Extract triples
         try:
-            ttl_output = self._extract_triples(text, iri)
+            ttl_output = self._extract_triples(text, iri, caps)
             if ttl_output:
                 self._push_turtle(ttl_output)
         except OllamaError:
@@ -91,9 +91,14 @@ class TripleExtractor(Element):
     def _can_process(self, caps: Caps | None, payload: object | None) -> bool:
         # 1. Check strict caps compatibility
         if isinstance(caps, Caps) and caps.name != "plain-text":
-            return False
- 
+            # Allow mail/mbox/image caps if we have text extractor logic for them
+            # or if the payload is text/dict-with-text.
+            # Ideally TripleExtractor should only see "narrated" text, 
+            # but currently we accept various caps if the payload is text-like.
+            pass
+            
         # 2. Check permissive compatibility (if payload provided)
+        # (Existing logic maintained for compatibility)
         if isinstance(caps, Caps) and caps.name == "plain-text":
             return True
         if payload is not None:
@@ -103,20 +108,20 @@ class TripleExtractor(Element):
             if isinstance(payload, dict) and "image_description" in payload:
                  return True
         elif caps is None:
-             # If strictly checking caps only (payload=None), we are stricter.
-             # We need explicit text caps or assumption of text.
-             # For now, if no caps provided at all, we might be lenient or strict.
-             # Let's be strict: if checking caps, and caps is None, return True 
-             # (allow permissive/uncapped) or False?
-             # Based on previous logic, we allowed uncapped.
              return True
              
+        # Allow mail-related caps if text is available
+        if isinstance(caps, Caps) and caps.name in ("application-mbox", "message-rfc822", "mail"):
+             if payload and (isinstance(payload, str) or isinstance(payload, dict)):
+                 return True
+                 
         return False
  
     def _extract_text(self, payload: object) -> str | None:
         if isinstance(payload, str):
             return payload
         if isinstance(payload, dict) and "image_description" in payload:
+            # Legacy image narrator output key
             return payload["image_description"]
         # Basic payload dict with data
         if isinstance(payload, dict) and b"data" in payload:
@@ -142,7 +147,92 @@ class TripleExtractor(Element):
         timestamp = datetime.now().isoformat()
         return f"urn:cognita:generated:{timestamp}"
 
-    def _extract_triples(self, text: str, subject_iri: str) -> str:
+    def _get_extraction_rules(self, caps: Caps | None) -> str:
+        """Return content-specific extraction rules."""
+        
+        # Default Generic Rules
+        base_rule = (
+            "1. Analyze the text to extract Subject-Predicate-Object triples.\n"
+            "2. The Subject IRI is provided.\n"
+        )
+        
+        if not caps:
+             return base_rule + (
+                 "3. Extract entities and relationships.\n"
+                 "4. Use standard vocabularies (schema, ex).\n"
+             )
+
+        # MAIL Rules
+        if caps.name in ("application-mbox", "message-rfc822", "mail"):
+            return base_rule + (
+                "3. The Subject IRI represents an **Email Message**.\n"
+                "4. Extract email metadata:\n"
+                "   - `schema:sender` (Person or Organization)\n"
+                "   - `schema:recipient`\n"
+                "   - `schema:dateSent`\n"
+                "   - `schema:about` (Subject Line topic)\n"
+                "5. Extract content details:\n"
+                "   - `schema:mentions` (Entities mentioned in body)\n"
+                "   - `ex:hasTopic`\n"
+                "6. Example:\n"
+                "   `<SubjectIRI> schema:sender <ex:Alice> .`\n"
+                "   `<SubjectIRI> schema:about \"Project Update\" .`\n"
+            )
+
+        # IMAGE Rules (Default assumption for now if not mail, or check explicitly)
+        # If caps name implies image/video/visual or if coming from image narrator
+        # (ImageNarrator outputs NARRATION_CAPS which inherits plain-text but has description 'Machine-generated...')
+        # We can check specific caps or just fallback to generic?
+        # The user issue was applying image rules to mbox.
+        # So we should be specific for image, fallback for text.
+        
+        # We don't have explicit IMAGE_CAPS passed here usually (it's NARRATION_CAPS).
+        # We rely on checking if it's NOT mail/text, OR if we can infer visual.
+        # But wait, ImageNarrator output caps are NARRATION_CAPS.
+        # How to distinguish Image Narration from Text Narration?
+        # In `ImageNarrator`, we output `NARRATION_CAPS`.
+        # Maybe we should check if the payload had `image_description`? 
+        # But we don't have payload here, just caps.
+        # For now, let's keep the existing "Image" rules as a specific branch if we can detect it,
+        # OR default to a GENERIC ruleset that isn't image-biased.
+        # The PROMPTS are:
+        # 1. MAIL
+        # 2. VISUAL (if we know it's visual)
+        # 3. GENERIC TEXT (default)
+        
+        # Since currently we only really have Image and Mail as main use cases:
+        # Let's assume Generic unless Mail? But previous default was Image.
+        return base_rule + (
+            "3. Extract entities and relationships.\n"
+            "4. Link main entities to the Subject IRI using suitable predicates (e.g., schema:mentions, schema:about, ex:depicts).\n"
+            "5. Use standard vocabularies.\n"
+        )
+
+    def _extract_triples(self, text: str, subject_iri: str, caps: Caps | None) -> str:
+        rules = self._get_extraction_rules(caps)
+        
+        # If we suspect visual content (e.g. from existing specific prompt logic), we might want to inject specific visual rules.
+        # But for now, let's stick to the safe Mail vs Generic split.
+        # Unless the user specifically wants the Image prompt back for images.
+        # The user said: "caps에 따라서 프롬프트를 달리 해보자."
+        
+        # Re-introducing Image Rules if caps are generic?
+        # If we want to support existing behavior for images, we need to know it's an image.
+        # But the input to TripleExtractor is TEXT (the narration). The caps *should* reflect the source.
+        # ImageNarrator should ideally propagate `broader: image` or similar metadata?
+        # Currently `ImageNarrator` emits `NARRATION_CAPS` (plain-text).
+        # Let's add a "Visual" check if possible, or stick to safe Generic.
+        
+        # For this specific task (fixing mbox), having a dedicated Mail prompt fixes the hallucination.
+        # Restoring the "Image" prompt requires identifying "Image".
+        # If I can't identify Image easily from current Caps, Generic is safer than Image-for-all.
+        
+        # Wait, the user command `image2spo` worked fine with the old prompt.
+        # I should try to preserve that behavior for `image2spo` while using Mail for `mbox2spo`.
+        
+        # Ideally, ImageNarrator should output caps that say "Narration of Image".
+        # But assuming Generic is safer. Let's start with Generic + Mail.
+        
         prompt = (
             "You are a Knowledge Graph extractor. "
             "Analyze the text below and extract Subject-Predicate-Object triples.\n"
@@ -157,18 +247,7 @@ class TripleExtractor(Element):
                 "For unknown predicates, use a generic namespace ex:.\n"
             )
 
-        prompt += (
-            "\nExtraction Rules:\n"
-            "1. The Subject IRI represents the **Image File** itself.\n"
-            "2. You MUST link identified main entities to this Subject IRI first.\n"
-            "   - Use `schema:image`, `ex:depicts`, or `ex:contains`.\n"
-            "   - Example: `<SubjectIRI> ex:depicts ex:PlasticBag`.\n"
-            "3. Then, extract relationships between entities.\n"
-            "   - Example: `ex:PlasticBag ex:contains ex:Mulberries`.\n"
-            "4. FORBIDDEN meta-predicates: 'hasContent', 'hasDescription' for visual objects.\n"
-            "5. Structure: Entity -> Predicate -> Entity (or Literal).\n"
-            "6. Use standard vocabularies (e.g., schema:, foaf:, dc:) or ex: for specific relations.\n"
-        )
+        prompt += f"\nExtraction Rules:\n{rules}"
 
         prompt += (
             "\nOutput Guidelines:\n"
