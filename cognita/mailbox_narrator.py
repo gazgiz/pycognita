@@ -22,9 +22,17 @@ class MailboxNarrator(Narrator):
     """
 
     def _can_process(self, caps: Caps | None, payload: object) -> bool:
-        # 1. If caps are present, we trust them.
+        # 1. If caps are present, we trust them (usually).
         if isinstance(caps, Caps):
-             return caps.name in ("application-mbox", "message-rfc822")
+             if caps.name in ("application-mbox", "message-rfc822"):
+                 # Payload Check:
+                 if payload is None:
+                     return True
+                 if isinstance(payload, bytes):
+                     return True
+                 if isinstance(payload, dict) and "uri" in payload:
+                     return True
+                 return False
 
         # 2. If no caps, we need a URI to access the file directly.
         if not isinstance(payload, dict) or "uri" not in payload:
@@ -37,7 +45,6 @@ class MailboxNarrator(Narrator):
             return False
             
         # 3. Read a small header sample to verify type before claiming it.
-        # This prevents us from trying to parse random files as mbox.
         try:
             with open(path, "rb") as f:
                 header = f.read(2048)
@@ -46,7 +53,23 @@ class MailboxNarrator(Narrator):
             return False
 
     def _narrate(self, payload: object, caps: Caps | None) -> str | None:
-        """Read the mailbox file and generate a summary."""
+        """Read the mailbox file OR single message content and generate a summary."""
+        import email
+        from email.policy import default
+        
+        # Case A: Direct Bytes (Single Message from MboxParser)
+        if isinstance(payload, bytes):
+            try:
+                # Treat as single email message
+                msg = email.message_from_bytes(payload, policy=default)
+                subject = msg.get("subject", "(No Subject)")
+                sender = msg.get("from", "(Unknown Sender)")
+                date = msg.get("date", "(Unknown Date)")
+                return f"Message: [{date}] From: {sender} | Subject: {subject}"
+            except Exception as e:
+                return f"Failed to parse email message: {e}"
+
+        # Case B: File URI (Whole Mbox File)
         if not isinstance(payload, dict):
             return None
         
