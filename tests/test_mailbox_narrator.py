@@ -9,9 +9,9 @@ def test_can_process_caps():
     caps_eml = Caps("message/rfc822", "message-rfc822")
     caps_other = Caps("other", "other")
     
-    assert narrator._can_process(caps_mbox, {})
-    assert narrator._can_process(caps_eml, {})
-    assert not narrator._can_process(caps_other, {})
+    assert narrator._can_process(caps_mbox, {"uri": "file://dummy"})
+    assert narrator._can_process(caps_eml, {"uri": "file://dummy"})
+    assert not narrator._can_process(caps_other, {"uri": "file://dummy"})
 
 def test_can_process_uncapped_valid_header():
     narrator = MailboxNarrator()
