@@ -10,19 +10,23 @@ from .pad import PadDirection
 TEXT_CAPS = Caps(
     media_type="text/plain",
     name="plain-text",
-    description="Plain text content.",
-    extensions=("txt",),
-    uri="urn:cognita:caps:plain-text",
-    broader=("urn:cognita:category:content",),
+    params={
+        "description": "Plain text content.",
+        "extensions": ("txt",),
+        "uri": "urn:cognita:caps:plain-text",
+        "broader": ("urn:cognita:category:content",),
+    },
 )
 
 NARRATION_CAPS = Caps(
     media_type="text/plain",
     name="plain-text",
-    description="Machine-generated text description.",
-    extensions=("txt",),
-    uri="urn:cognita:caps:text:machine-narrated",
-    broader=("urn:cognita:caps:plain-text",),
+    params={
+        "description": "Machine-generated text description.",
+        "extensions": ("txt",),
+        "uri": "urn:cognita:caps:text:machine-narrated",
+        "broader": ("urn:cognita:caps:plain-text",),
+    },
 )
 
 
@@ -79,7 +83,7 @@ class Narrator(Element):
 
         description = self._narrate(payload, caps)
         if description:
-            self._announce_output_caps()
+            self._announce_output_caps(caps)
             self._push_downstream(description)
 
     def _can_process(self, caps: Caps | None, payload: object | None) -> bool:
@@ -99,8 +103,22 @@ class Narrator(Element):
             if pad.direction == PadDirection.SRC and pad.peer:
                 pad.peer.element.on_buffer(pad.peer, payload)
 
-    def _announce_output_caps(self) -> None:
-        self._caps = self._output_caps
+    def _announce_output_caps(self, input_caps: Caps | None = None) -> None:
+        final_caps = self._output_caps
+        
+        if input_caps:
+            # Propagate Identity from upstream
+            new_params = {}
+            # Check safely for params existence (backward compat)
+            p = getattr(input_caps, "params", {})
+            
+            if p.get("fingerprint"):
+                new_params["fingerprint"] = p["fingerprint"]
+                
+            if new_params:
+                final_caps = final_caps.merge_params(new_params)
+        
+        self._caps = final_caps
         for pad in self.pads:
             if pad.direction == PadDirection.SRC:
-                pad.set_caps(self._output_caps, propagate=True)
+                pad.set_caps(final_caps, propagate=True)
