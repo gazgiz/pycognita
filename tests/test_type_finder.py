@@ -28,6 +28,15 @@ def test_detect_mbox():
     assert caps.name == "application-mbox"
     assert "mbox" in caps.params["extensions"]
 
+def test_detect_mbox_crlf():
+    analyzer = HeaderAnalyzer()
+    # Windows-style CRLF line endings
+    data = b"From user Fri Jul  8 12:00:00 2011\r\nSubject: Hi"
+    caps = analyzer.detect(data)
+    assert caps is not None, "Failed to detect mbox with CRLF"
+    assert caps.name == "application-mbox"
+    assert "mbox" in caps.params["extensions"]
+
 def test_detect_eml():
     analyzer = HeaderAnalyzer()
     data = b"Subject: Hello\nFrom: sender@example.com\n"

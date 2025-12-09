@@ -134,7 +134,7 @@ def _is_mbox(data: bytes) -> bool:
     
     # Decode first line to check pattern
     try:
-        first_line = data.split(b"\n", 1)[0].decode("utf-8")
+        first_line = data.split(b"\n", 1)[0].decode("utf-8").strip()
     except UnicodeDecodeError:
         return False
 
