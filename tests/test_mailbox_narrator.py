@@ -5,10 +5,12 @@ from cognita.caps import Caps
 
 def test_can_process_caps():
     narrator = MailboxNarrator()
-    caps_mail = Caps("mail", "mail")
+    caps_mbox = Caps("application/mbox", "application-mbox")
+    caps_eml = Caps("message/rfc822", "message-rfc822")
     caps_other = Caps("other", "other")
     
-    assert narrator._can_process(caps_mail, {})
+    assert narrator._can_process(caps_mbox, {})
+    assert narrator._can_process(caps_eml, {})
     assert not narrator._can_process(caps_other, {})
 
 def test_can_process_uncapped_valid_header():

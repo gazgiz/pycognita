@@ -24,7 +24,7 @@ class MailboxNarrator(Narrator):
     def _can_process(self, caps: Caps | None, payload: object) -> bool:
         # 1. If caps are present, we trust them.
         if isinstance(caps, Caps):
-             return caps.name == "mail"
+             return caps.name in ("application-mbox", "message-rfc822")
 
         # 2. If no caps, we need a URI to access the file directly.
         if not isinstance(payload, dict) or "uri" not in payload:

@@ -66,13 +66,24 @@ VIDEO_CAPS = Caps(
     },
 )
 
-MAIL_CAPS = Caps(
-    media_type="mail",
-    name="mail",
+MBOX_CAPS = Caps(
+    media_type="application/mbox",
+    name="application-mbox",
     params={
-        "description": "Email message content (mbox/eml).",
-        "extensions": ("eml", "mbox"),
-        "uri": "urn:cognita:caps:mail",
+        "description": "Email archive (mbox).",
+        "extensions": ("mbox",),
+        "uri": "urn:cognita:caps:application-mbox",
+        "broader": ("urn:cognita:category:content",),
+    },
+)
+
+EML_CAPS = Caps(
+    media_type="message/rfc822",
+    name="message-rfc822",
+    params={
+        "description": "Email message (eml/rfc822).",
+        "extensions": ("eml",),
+        "uri": "urn:cognita:caps:message-rfc822",
         "broader": ("urn:cognita:category:content",),
     },
 )
@@ -216,8 +227,8 @@ def _is_text_document(data: bytes) -> bool:
 DEFAULT_DETECTORS: List[HeaderDetector] = [
     # Order matters: check specific formats before generic ones (like zip or text).
     HeaderDetector("calendar", _is_calendar, CALENDAR_CAPS),
-    HeaderDetector("mbox", _is_mbox, MAIL_CAPS),
-    HeaderDetector("eml", _is_eml, MAIL_CAPS),
+    HeaderDetector("mbox", _is_mbox, MBOX_CAPS),
+    HeaderDetector("eml", _is_eml, EML_CAPS),
     HeaderDetector("pdf", _is_pdf, DOCUMENT_CAPS),
     HeaderDetector("ooxml-zip", _is_ooxml_zip, DOCUMENT_CAPS),
     HeaderDetector("mp4", _is_mp4, VIDEO_CAPS),
@@ -274,8 +285,8 @@ def compute_identity(uri: str, caps: Caps) -> dict[str, Any]:
     if not os.path.isfile(path):
         return params
 
-    # Strategy 1: Mail Message-ID
-    if caps.name == "mail":
+    # Strategy 1: Mail Message-ID (Single EML only)
+    if caps.name == "message-rfc822":
         try:
             with open(path, "rb") as f:
                 # Read enough for headers
@@ -284,11 +295,13 @@ def compute_identity(uri: str, caps: Caps) -> dict[str, Any]:
                 msg = parser.parsebytes(head_sample)
                 msg_id = msg.get("Message-ID")
                 if msg_id:
-                     # USER REQUEST: Use Message-ID as the fingerprint for standard handling
                      params["fingerprint"] = msg_id.strip()
                      return params
         except Exception:
             pass # Fallback to fingerprint
+
+    # Strategy 2: Full SHA-256 Fingerprint (Fallback + MBOX)
+    # MBOX (application-mbox) naturally falls through here.
 
     # Strategy 2: Full SHA-256 Fingerprint
     try:

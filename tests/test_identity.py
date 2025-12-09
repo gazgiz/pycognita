@@ -7,7 +7,6 @@ from unittest.mock import MagicMock
 from cognita.source import DiscreteDataSource
 from cognita.caps import Caps
 from cognita.pad import Pad, PadDirection
-from cognita.type_finder import MAIL_CAPS
 
 @pytest.fixture
 def mock_pad():
@@ -71,11 +70,51 @@ def test_mail_file_fingerprint(mock_pad):
         mock_pad.set_caps.assert_called_once()
         caps_arg = mock_pad.set_caps.call_args[0][0]
         
-        assert caps_arg.name == "mail"
+        # New Standard Name
+        assert caps_arg.name == "message-rfc822"
         # The key change: Message-ID is now stored as "fingerprint"
         assert "fingerprint" in caps_arg.params
         assert caps_arg.params["fingerprint"] == "<unique-id-12345@example.com>"
         assert "message_id" not in caps_arg.params
+        
+    finally:
+        os.remove(tmp_path)
+
+def test_mbox_file_fingerprint(mock_pad):
+    """Test that an MBOX file gets a SHA-256 fingerprint (NOT Message-ID)."""
+    # Create a minimal MBOX (From line required)
+    content = (
+        b"From MAILER-DAEMON Fri Jul  8 12:08:34 2011\n"
+        b"From: sender@example.com\n"
+        b"To: recipient@example.com\n"
+        b"Subject: Test Mbox Email\n"
+        b"Message-ID: <first-msg-id@example.com>\n"
+        b"\n"
+        b"Body content."
+    )
+    expected_hash = hashlib.sha256(content).hexdigest()
+    
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+    
+    try:
+        uri = f"file://{tmp_path}"
+        source = DiscreteDataSource(uri=uri)
+        source._pads = [mock_pad]
+        
+        source.process()
+        
+        mock_pad.set_caps.assert_called_once()
+        caps_arg = mock_pad.set_caps.call_args[0][0]
+        
+        # New Standard Name
+        assert caps_arg.name == "application-mbox"
+        assert "fingerprint" in caps_arg.params
+        
+        # KEY CHECK: Should be HASH, not the Message-ID
+        assert caps_arg.params["fingerprint"] == expected_hash
+        assert caps_arg.params["fingerprint"] != "<first-msg-id@example.com>"
         
     finally:
         os.remove(tmp_path)

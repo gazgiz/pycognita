@@ -25,14 +25,14 @@ def test_detect_mbox():
     analyzer = HeaderAnalyzer()
     data = b"From user Fri Jul  8 12:00:00 2011\nSubject: Hi"
     caps = analyzer.detect(data)
-    assert caps.name == "mail"
+    assert caps.name == "application-mbox"
     assert "mbox" in caps.params["extensions"]
 
 def test_detect_eml():
     analyzer = HeaderAnalyzer()
     data = b"Subject: Hello\nFrom: sender@example.com\n"
     caps = analyzer.detect(data)
-    assert caps.name == "mail"
+    assert caps.name == "message-rfc822"
     assert "eml" in caps.params["extensions"]
 
 def test_detect_mp4():

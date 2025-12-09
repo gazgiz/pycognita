@@ -33,12 +33,12 @@ def test_mbox_source_caps(mock_pad):
     
     # 1. Check basic type
     assert isinstance(caps_arg, Caps)
-    assert caps_arg.name == "mail"
-    assert caps_arg.media_type == "mail"
+    assert caps_arg.name == "application-mbox"
+    assert caps_arg.media_type == "application/mbox"
     
     # 2. Check extensions
     # Depending on detection, it might set extensions
-    # type_finder: MAIL_CAPS has extensions=("eml", "mbox")
+    # type_finder: MBOX_CAPS has extensions=("mbox",)
     assert "extensions" in caps_arg.params
     assert "mbox" in caps_arg.params["extensions"]
     
