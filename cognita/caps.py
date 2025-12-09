@@ -1,127 +1,252 @@
-"""# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial"""
+# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial
 from __future__ import annotations
 
-"""Core CAPS model and helpers.
+"""Capabilities (Caps) handling using RDF/Check-lists.
 
-Caps (capabilities) describe the semantic type of a file or payload. This small
-module mirrors a subset of GStreamer CAPS ideas, with helpers to:
-  - Represent a type as a frozen dataclass.
-  - Render human-readable labels.
-  - Produce RDF-like triples or Turtle snippets for downstream systems.
-
-The goal is to keep type metadata explicit and easily serializable without
-pulling in heavy dependencies.
+Caps describe the type of data flowing through the pipeline.
+They are essentially a set of RDF triples describing a Subject (the Content).
 """
 
-from dataclasses import dataclass
-from typing import Iterable, Sequence
+import json
+from typing import Any, Iterable, Sequence
 
+from rdflib import Graph, Literal, URIRef, BNode, Namespace
+from rdflib.namespace import RDF, RDFS, DCTERMS, XSD
 
-@dataclass(frozen=True)
+# Standard Namespaces (Manual to avoid SDO validation warnings)
+SCHEMA = Namespace("https://schema.org/")
+
+# Project Namespaces
+PC = Namespace("urn:cognita:caps#")
+PARAM = Namespace("urn:cognita:param:")
+
 class Caps:
-    """Simple capability descriptor (inspired by GStreamer's CAPS).
-
-    Attributes:
-        media_type: Broad MIME-style category (e.g., "image", "document").
-        name: Short canonical name for the type.
-        description: Optional human-friendly explanation.
-        extensions: Optional file extensions associated with the type.
-        uri: Optional canonical URI for RDF/linked-data style references.
-        broader: Optional URIs for parent categories.
+    """Describes the capabilities/type of a data stream or file.
+    
+    Internally backed by an rdflib.Graph.
     """
+    
+    def __init__(
+        self,
+        media_type: str | None = None,
+        name: str | None = None,
+        params: dict[str, Any] | None = None,
+    ):
+        self._graph = Graph()
+        self._graph.bind("pc", PC)
+        self._graph.bind("param", PARAM)
+        self._graph.bind("dcterms", DCTERMS)
+        self._graph.bind("schema", SCHEMA)
+        
+        params = params or {}
+        
+        # 1. Determine Identity (Subject)
+        # If 'uri' is in params, use it. Otherwise, mint URN or BNode.
+        uri = params.get("uri")
+        if uri:
+            self._node = URIRef(uri)
+        elif name:
+            # Stable URN for standard types (Hash URI for CURIE support)
+            self._node = PC[name]
+        else:
+            self._node = BNode()
+            
+        self._graph.add((self._node, RDF.type, PC.Caps))
+        
+        # 2. Add Core Properties
+        if media_type:
+            self._graph.add((self._node, DCTERMS.format, Literal(media_type)))
+        if name:
+            self._graph.add((self._node, RDFS.label, Literal(name)))
+            
+        # 3. Add Params
+        for key, value in params.items():
+            if key == "uri":
+                continue # Handled
+            self._add_param(key, value)
 
-    media_type: str
-    name: str
-    description: str | None = None
-    extensions: Sequence[str] | None = None
-    uri: str | None = None
-    broader: Sequence[str] | None = None
+    def _add_param(self, key: str, value: Any) -> None:
+        """Add a parameter to the graph, mapping logic to predicates."""
+        predicate = self._map_key_to_predicate(key)
+        
+        values = value if isinstance(value, (list, tuple)) else [value]
+        
+        for v in values:
+            usage_obj = self._to_rdf_object(key, v)
+            self._graph.add((self._node, predicate, usage_obj))
+            
+    def _map_key_to_predicate(self, key: str) -> URIRef:
+        if key == "description":
+            return RDFS.comment
+        elif key == "extensions":
+            return SCHEMA["fileExtension"]
+        elif key == "broader":
+            return RDFS.subClassOf
+        else:
+            # Fallback to generic param namespace
+            return PARAM[key]
+
+    def _to_rdf_object(self, key: str, value: Any) -> URIRef | Literal:
+        # If it looks like a URI, maybe return URIRef?
+        # For now, strict mapping for "broader" which expects URIs often
+        if key == "broader":
+            return URIRef(str(value))
+        return Literal(value)
+
+    @property
+    def media_type(self) -> str | None:
+        """Get the media type (dcterms:format)."""
+        val = self._graph.value(self._node, DCTERMS.format)
+        return str(val) if val else None
+        
+    @property
+    def name(self) -> str | None:
+        """Get the short name (rdfs:label)."""
+        val = self._graph.value(self._node, RDFS.label)
+        return str(val) if val else None
+
+    @property
+    def uri(self) -> str:
+        """Get the URI of this Caps node."""
+        return str(self._node)
+
+    @property
+    def params(self) -> dict[str, Any]:
+        """Reconstruct a params dictionary for backward compatibility.
+        
+        WARNING: This is lossy/approximate if multiple values exist for single-value expectations.
+        """
+        p = {}
+        # We need to inverse map predicates to keys? 
+        # Or just dump everything we find?
+        # Let's support the known keys at least.
+        
+        # description
+        desc = self._graph.value(self._node, RDFS.comment)
+        if desc: p["description"] = str(desc)
+        
+        # extensions (list)
+        exts = []
+        for o in self._graph.objects(self._node, SCHEMA.fileExtension):
+             exts.append(str(o))
+        if exts: p["extensions"] = tuple(exts) # Tuple for compat
+        
+        # broader (list)
+        broaders = []
+        for o in self._graph.objects(self._node, RDFS.subClassOf):
+            broaders.append(str(o))
+        if broaders: p["broader"] = tuple(broaders)
+        
+        # uri
+        p["uri"] = str(self._node)
+        
+        # Generic params
+        for s, p_pred, o in self._graph.triples((self._node, None, None)):
+            if p_pred.startswith(PARAM):
+                key = str(p_pred).replace(str(PARAM), "")
+                # naive handling of multi-values: overwrite or list?
+                # For compatibility, let's just overwrite for now unless we need list
+                p[key] = str(o)
+                
+        return p
+
+    def merge_params(self, new_params: dict[str, Any]) -> Caps:
+        """Return a NEW Caps object with merged parameters."""
+        # This is slightly expensive: we have to extract current state and merge.
+        # Or we can copy the graph.
+        
+        # Copy graph strategy
+        new_graph = Graph()
+        new_graph += self._graph # add all triples
+        
+        # Create new instance but manually inject graph? 
+        # Cleaner: Re-instantiate from current params + new_params
+        # because we moved to a graph-primary source of truth.
+        current_data = self.params
+        current_data.update(new_params)
+        
+        return Caps(
+            media_type=self.media_type,
+            name=self.name,
+            params=current_data
+        )
 
     def label(self) -> str:
-        """Return a display-friendly label, preferring name over media_type."""
-        return self.name or self.media_type
+        return self.name or self.media_type or "unknown"
+        
+    def __repr__(self) -> str:
+        return f"Caps(media_type={self.media_type}, name={self.name})"
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Caps):
+            return NotImplemented
+        # Graph isomorphism is expensive. 
+        # Check basic properties + uri?
+        # Or strict graph iso?
+        # Let's try basic ISO
+        from rdflib.compare import to_isomorphic
+        return to_isomorphic(self._graph) == to_isomorphic(other._graph)
 
 
 def format_caps(caps: Caps) -> str:
-    """Render a compact human-readable summary of a CAPS instance."""
-    parts = [caps.media_type]
-    if caps.extensions:
-        parts.append(f"ext={','.join(caps.extensions)}")
-    if caps.description:
-        parts.append(caps.description)
+    parts = []
+    if caps.media_type:
+        parts.append(caps.media_type)
+    
+    exts = caps.params.get("extensions")
+    if exts:
+        parts.append(f"ext={','.join(exts)}")
+        
+    desc = caps.params.get("description")
+    if desc:
+        parts.append(desc)
+        
     return " | ".join(parts)
 
 
-def any_match(candidate: str, options: Iterable[str]) -> bool:
-    """Case-insensitive equality check against a collection of options."""
-    return any(candidate.lower() == option.lower() for option in options)
+def any_match(needle: str, haystack: Iterable[str]) -> bool:
+    needle = needle.lower()
+    return any(needle == h.lower() for h in haystack)
 
 
 def caps_triples(caps: Caps) -> list[tuple[str, str, str]]:
-    """Return a small RDF-like triple list for the CAPS item.
-
-    The triples are tailored for lightweight linked-data use without requiring
-    an RDF library. Predicates use a pseudo-namespace `pc:` for "pycognita".
-    """
-    subject = caps.uri or f"urn:cognita:caps:{caps.name}"
-    triples = [
-        (subject, "rdf:type", "pc:Caps"),
-        (subject, "pc:mediaType", caps.media_type),
-        (subject, "pc:name", caps.name),
-    ]
-    if caps.description:
-        triples.append((subject, "pc:description", caps.description))
-    if caps.extensions:
-        for ext in caps.extensions:
-            triples.append((subject, "pc:extension", ext))
-    if caps.broader:
-        for parent in caps.broader:
-            triples.append((subject, "rdfs:subClassOf", parent))
+    """Export triples as simple string tuples (legacy support)."""
+    # Just iterate graph and str() everything
+    triples = []
+    for s, p, o in caps._graph:
+        # Map well-known predicates to the 'pc:...' style if specifically requested by legacy tests?
+        # Or just return full URIs?
+        # Legacy code expects 'pc:mediaType', etc. 
+        # If I return full URIs, legacy tests fail.
+        # I should probably update legacy tests to expect full URIs or CURIEs.
+        # Let's return CURIEs if possible using graph's namespace manager.
+        
+        s_q = caps._graph.namespace_manager.normalizeUri(s)
+        p_q = caps._graph.namespace_manager.normalizeUri(p)
+        o_q = caps._graph.namespace_manager.normalizeUri(o) if isinstance(o, URIRef) else str(o)
+        
+        triples.append((s_q, p_q, o_q))
+        
     return triples
 
 
 def caps_to_turtle(caps: Caps) -> str:
-    """Serialize a Caps instance into a minimal Turtle string."""
-    lines = [
-        "@prefix pc: <urn:cognita:caps#> .",
-        "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .",
-        "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .",
-        "",
-    ]
-    subj = f"<{caps.uri}>" if caps.uri else f"pc:{caps.name}"
-    lines.append(f"{subj} a pc:Caps ;")
-    lines.append(f'  pc:mediaType "{caps.media_type}" ;')
-    lines.append(f'  pc:name "{caps.name}" ;')
-
-    if caps.description:
-        lines.append(f'  pc:description "{caps.description}" ;')
-    if caps.extensions:
-        ext_literals = ", ".join(f'"{ext}"' for ext in caps.extensions)
-        lines.append(f"  pc:extension {ext_literals} ;")
-    if caps.broader:
-        broader_refs = ", ".join(f"<{uri}>" for uri in caps.broader)
-        lines.append(f"  rdfs:subClassOf {broader_refs} ;")
-
-    lines[-1] = lines[-1].rstrip(" ;") + " ."
-    return "\n".join(lines)
+    """Serialize caps to Turtle format."""
+    return caps._graph.serialize(format="turtle")
 
 
-def summarize_caps(caps: Caps, type_source: str | None = None) -> str:
-    """Render a JSON summary suitable for CLI output."""
-    import json
-
-    summary = {
+def summarize_caps(caps: Caps, type_source: str = "unknown") -> str:
+    """Return a JSON summary of the caps."""
+    info = {
         "media_type": caps.media_type,
         "name": caps.name,
+        "description": caps.params.get("description"),
+        "source": type_source,
     }
-    if caps.uri:
-        summary["uri"] = caps.uri
-    if caps.broader:
-        summary["broader"] = ",".join(caps.broader)
-    if caps.extensions:
-        summary["extensions"] = ",".join(caps.extensions)
-    if caps.description:
-        summary["description"] = caps.description
-    if type_source:
-        summary["source"] = type_source
-    return json.dumps(summary, ensure_ascii=True)
+    # Add other params
+    p = caps.params
+    for k, v in p.items():
+        if k not in info:
+            info[k] = v
+            
+    return json.dumps(info, indent=2)
