@@ -54,13 +54,23 @@ class ImageNarrator(Narrator):
 
         b64 = base64.b64encode(data).decode("ascii")
         prompt = (
-            "Analyze this image for Knowledge Graph extraction. "
-            "1. Start with a summary line: 'This image depicts [Key Objects].'\n"
-            "2. Identify distinct objects and their inter-relationships.\n"
-            "Output strictly as a list of atomic statements in this format:\n"
-            "- [Object A] [relationship] [Object B]\n"
-            "- [Object] is [Visual Attribute]\n"
-            "Example: 'This image depicts a Plastic Bag and Mulberries.', '- PlasticBag contains Mulberries'.\n"
+            "Analyze this image to provide structured data for a Knowledge Graph using a 'Chain of Description' method.\n"
+            "Step 1: Identify the Overall Situation. What is happening globally? (e.g., 'A busy commute at a train station').\n"
+            "Step 2: Justify your identification. Why is it this situation? (e.g., 'Because I see a [Crowd] waiting near the [Ticket Gates]').\n"
+            "Step 3: Drill down into the entities mentioned. Describe them and their states.\n"
+            "   - 'The [Crowd] is dense and moving towards the platform.'\n"
+            "   - 'The [Ticket Gates] are open and metallic.'\n"
+            "Step 4: Continue drilling down until no meaningful details remain.\n"
+            "Step 5: Output strictly as a list of atomic statements (Subject - Predicate - Object format).\n"
+            "Format rules:\n"
+            "- Start with: 'This image depicts [Situation/Context].'\n"
+            "- [Subject] [predicate] [Object]\n"
+            "- CRITICAL: Do NOT repeat the same action for multiple individuals (e.g., NO 'Person 1 is entering', 'Person 2 is entering'). Group them: 'Crowd is entering'.\n"
+            "Example:\n"
+            "- This image depicts a Graduation Ceremony.\n"
+            "- Graduation Ceremony involves Graduates and Audience.\n"
+            "- Graduates are wearing Cap and Gown.\n"
+            "- Audience is sitting in Bleachers.\n"
             "Do NOT write paragraphs. List separate facts."
         )
         try:

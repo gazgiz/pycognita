@@ -47,6 +47,8 @@ def test_narrate_success(mock_ollama):
         
         # Verify prompt structure
         assert "This image depicts" in args[0]
+        assert "Chain of Description" in args[0]
+        assert "Identify the Overall Situation" in args[0]
         assert "atomic statements" in args[0]
         assert "Base64 (entire image)" not in args[0] # Should NOT be in text
         
