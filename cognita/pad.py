@@ -1,10 +1,13 @@
-"""# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial"""
-from __future__ import annotations
-
+# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial
 """Pad primitives shared across elements."""
 
+from __future__ import annotations
+
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .element import Element
 
 
 class PadDirection(str, Enum):
@@ -26,14 +29,14 @@ class Pad:
     back-reference to its element to allow future flow-control extensions.
     """
 
-    def __init__(self, name: str, direction: PadDirection, element: "Element"):
+    def __init__(self, name: str, direction: PadDirection, element: Element):
         self.name = name
         self.direction = direction
         self.element = element
-        self.peer: "Pad | None" = None
+        self.peer: Pad | None = None
         self.caps: Any | None = None  # Optional negotiated caps
 
-    def link(self, peer: "Pad") -> None:
+    def link(self, peer: Pad) -> None:
         """Connect this pad to its peer, enforcing directionality and single-link rules."""
         if self.peer or peer.peer:
             raise ValueError("pad already linked")

@@ -1,6 +1,4 @@
-"""# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial"""
-from __future__ import annotations
-
+# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial
 """File type detection helpers with header heuristics and Ollama fallback.
 
 Key pieces:
@@ -9,13 +7,16 @@ Key pieces:
   - summarize_caps: emits a compact JSON summary for CLI output.
 """
 
-import hashlib
+from __future__ import annotations
+
 import binascii
+import hashlib
 import os
 import re
-from email.parser import BytesHeaderParser
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Callable, List, Sequence, Any
+from email.parser import BytesHeaderParser
+from typing import Any
 
 from .caps import Caps
 
@@ -131,7 +132,7 @@ def _is_mbox(data: bytes) -> bool:
     # Check for "From " at the start
     if not data.startswith(b"From "):
         return False
-    
+
     # Decode first line to check pattern
     try:
         first_line = data.split(b"\n", 1)[0].decode("utf-8").strip()
@@ -224,7 +225,7 @@ def _is_text_document(data: bytes) -> bool:
     return not calendar
 
 
-DEFAULT_DETECTORS: List[HeaderDetector] = [
+DEFAULT_DETECTORS: list[HeaderDetector] = [
     # Order matters: check specific formats before generic ones (like zip or text).
     HeaderDetector("calendar", _is_calendar, CALENDAR_CAPS),
     HeaderDetector("mbox", _is_mbox, MBOX_CAPS),
@@ -278,9 +279,9 @@ def compute_identity(uri: str, caps: Caps) -> dict[str, Any]:
     - For others, computes SHA-256 fingerprint of the file.
     """
     params = {}
-    
+
     path = uri[len("file://") :] if uri.startswith("file://") else uri
-    
+
     # Only verify existence if we need to read it (which we do for both cases)
     if not os.path.isfile(path):
         return params
@@ -295,10 +296,10 @@ def compute_identity(uri: str, caps: Caps) -> dict[str, Any]:
                 msg = parser.parsebytes(head_sample)
                 msg_id = msg.get("Message-ID")
                 if msg_id:
-                     params["fingerprint"] = msg_id.strip()
-                     return params
+                    params["fingerprint"] = msg_id.strip()
+                    return params
         except Exception:
-            pass # Fallback to fingerprint
+            pass  # Fallback to fingerprint
 
     # Strategy 2: Full SHA-256 Fingerprint (Fallback + MBOX)
     # MBOX (application-mbox) naturally falls through here.
@@ -308,14 +309,14 @@ def compute_identity(uri: str, caps: Caps) -> dict[str, Any]:
         sha256 = hashlib.sha256()
         with open(path, "rb") as f:
             while True:
-                chunk = f.read(65_536) # 64KB chunks
+                chunk = f.read(65_536)  # 64KB chunks
                 if not chunk:
                     break
                 sha256.update(chunk)
         params["fingerprint"] = sha256.hexdigest()
     except OSError:
         pass
-        
+
     return params
 
 

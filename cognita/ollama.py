@@ -1,22 +1,13 @@
-"""# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial"""
+# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial
+"""Ollama API client wrapper."""
+
 from __future__ import annotations
-
-"""Minimal Ollama client for file-type guessing.
-
-This module keeps HTTP and parsing logic small and dependency-free:
-  - Uses stdlib urllib for POSTing prompts to an Ollama server.
-  - Accepts a friendly JSON shape from the model and maps it to `Caps`.
-  - Surfaces narrow exception types to keep pipeline error handling clear.
-
-The client is intentionally synchronous and single-purpose; callers can build
-their own retry/timeout logic around it if needed.
-"""
 
 import json
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 from .caps import Caps
 
@@ -29,7 +20,7 @@ class OllamaUnavailableError(OllamaError):
     """Raised when the Ollama endpoint cannot be reached (network/refused)."""
 
 
-def _extract_json_object(text: str) -> Dict[str, Any] | None:
+def _extract_json_object(text: str) -> dict[str, Any] | None:
     """Best-effort extraction of a JSON object from a free-form string."""
     start = text.find("{")
     end = text.rfind("}")
@@ -84,7 +75,9 @@ class OllamaClient:
 
     def guess_file_type(self, file_path: str | None, header_hex: str, body_preview: str) -> Caps:
         """Ask Ollama to classify a file based on header hex and preview text."""
-        prompt = self._build_prompt(file_path=file_path, header_hex=header_hex, body_preview=body_preview)
+        prompt = self._build_prompt(
+            file_path=file_path, header_hex=header_hex, body_preview=body_preview
+        )
         response = self._request(prompt)
         parsed = _extract_json_object(response)
         if not parsed:

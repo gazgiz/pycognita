@@ -1,19 +1,19 @@
-"""# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial"""
-from __future__ import annotations
-
+# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial
 """Element that generates a detailed English description for image caps using Ollama."""
+
+from __future__ import annotations
 
 import base64
 import os
 
 from .caps import Caps
-from .narrator import Narrator, TEXT_CAPS
+from .narrator import Narrator
 from .ollama import OllamaClient, OllamaError
 
 
 class ImageNarrator(Narrator):
     """Consumes buffers, and for image-photo caps, asks Ollama to describe the image.
-    
+
     Like MailboxNarrator, this supports both capped and uncapped (URI-only) payloads.
     It uses a vision-capable Ollama model (default: qwen2.5vl:3b) to generate descriptions.
     """
@@ -27,7 +27,7 @@ class ImageNarrator(Narrator):
         # 1. Capped mode: strictly check for image-photo.
         if isinstance(caps, Caps):
             return caps.name == "image-photo"
-        
+
         # 2. Uncapped mode: check if we have a URI.
         # Note: We don't strictly verify file content here like MailboxNarrator does,
         # because we rely on Ollama to handle (or reject) the image data later.
@@ -47,7 +47,7 @@ class ImageNarrator(Narrator):
         if not self.ollama_client:
             return "No Ollama client configured; image description unavailable."
 
-        #if data is None and uri:
+        # if data is None and uri:
         data = self._read_all(uri)
         if not data:
             return "Image bytes unavailable; cannot generate description."

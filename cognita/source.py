@@ -1,7 +1,7 @@
-"""# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial"""
-from __future__ import annotations
-
+# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial
 """Source element variants for time-series vs discrete data, using URI input."""
+
+from __future__ import annotations
 
 import os
 import urllib.parse
@@ -14,19 +14,19 @@ from .pad import PadDirection
 from .type_finder import (
     HeaderAnalyzer,
     TypeFinderError,
+    compute_identity,
     header_sample_to_hex,
     preview_text,
-    compute_identity,
 )
 
 
 @dataclass
 class TimeSeriesDataSource(SourceElement):
     """Streaming data source (e.g. logs, sensors) that must prebuffer for type detection.
-    
+
     Because the data is a stream (destructive read), the bytes read for detection
     MUST be preserved and passed downstream so no data is lost.
-    
+
     Payload:
         - type_source: "header" or "ollama"
         - uri: Source URI
@@ -45,7 +45,7 @@ class TimeSeriesDataSource(SourceElement):
 
     def _read_prebuffer(self) -> bytes:
         path = _resolve_file_path(self.uri)
-            
+
         if not os.path.isfile(path):
             raise FileNotFoundError(f"resource does not exist: {self.uri}")
         with open(path, "rb") as file:
@@ -54,10 +54,8 @@ class TimeSeriesDataSource(SourceElement):
     def process(self) -> None:
         """Read prebuffer, detect type, and push payload with data."""
         data = self._read_prebuffer()
-        caps, type_source = _detect_caps(
-            data, self.uri, self.header_analyzer, self.ollama_client
-        )
-        
+        caps, type_source = _detect_caps(data, self.uri, self.header_analyzer, self.ollama_client)
+
         # We might want identity for streams too, but often streams are infinite/named pipes.
         # For now, we only apply compute_identity to DiscreteDataSource as requested.
 
@@ -71,10 +69,10 @@ class TimeSeriesDataSource(SourceElement):
 @dataclass
 class DiscreteDataSource(SourceElement):
     """Discrete data source (e.g. files) that performs detection but passes only URI.
-    
+
     Because the data is random-access/static, we can read a sample for detection
     and discard it. Downstream elements will open the URI themselves.
-    
+
     Payload:
         - type_source: "header" or "ollama"
         - uri: Source URI
@@ -84,7 +82,7 @@ class DiscreteDataSource(SourceElement):
     uri: str
     header_analyzer: HeaderAnalyzer | None = None
     ollama_client: OllamaClient | None = None
-    
+
     _DETECTION_SAMPLE_SIZE = 32_768  # 32KB sample for detection
 
     def __post_init__(self) -> None:
@@ -94,10 +92,10 @@ class DiscreteDataSource(SourceElement):
 
     def _read_detection_sample(self) -> bytes:
         path = _resolve_file_path(self.uri)
-            
+
         if not os.path.isfile(path):
             raise FileNotFoundError(f"resource does not exist: {self.uri}")
-        
+
         try:
             with open(path, "rb") as file:
                 return file.read(self._DETECTION_SAMPLE_SIZE)
@@ -107,10 +105,8 @@ class DiscreteDataSource(SourceElement):
     def process(self) -> None:
         """Read sample, detect type, and push payload without data."""
         data = self._read_detection_sample()
-        caps, type_source = _detect_caps(
-            data, self.uri, self.header_analyzer, self.ollama_client
-        )
-        
+        caps, type_source = _detect_caps(data, self.uri, self.header_analyzer, self.ollama_client)
+
         # Enhance caps with identity (fingerprint or message_id)
         if caps:
             identity_params = compute_identity(self.uri, caps)
@@ -128,33 +124,30 @@ def _resolve_file_path(uri: str) -> str:
     """Robustly resolve file:// URI to local path, handling both standard and naive Windows formats."""
     if not uri.startswith("file://"):
         return uri
-        
+
     # 1. Try standard parsing (handles encoding, / separators correctly)
     parsed = urllib.parse.urlparse(uri)
     standard_path = urllib.request.url2pathname(parsed.path)
     if os.path.exists(standard_path):
         return standard_path
-        
+
     # 2. Fallback: naive prefix stripping (handles 'file://C:\path' with backslashes)
-    naive_path = uri[len("file://"):]
+    naive_path = uri[len("file://") :]
     if os.path.exists(naive_path):
         return naive_path
 
-    # 3. If neither exists, prefer standard path for better error messages, 
+    # 3. If neither exists, prefer standard path for better error messages,
     # unless it's empty (which happens if urlparse failed on backslashes)
     return standard_path if standard_path else naive_path
 
 
 def _detect_caps(
-    data: bytes,
-    uri: str,
-    header_analyzer: HeaderAnalyzer,
-    ollama_client: OllamaClient | None
-) -> tuple[object | None, str]: # Changed Caps to object to avoid import issues
+    data: bytes, uri: str, header_analyzer: HeaderAnalyzer, ollama_client: OllamaClient | None
+) -> tuple[object | None, str]:  # Changed Caps to object to avoid import issues
     """Shared logic for detecting caps from data sample."""
     caps = header_analyzer.detect(data)
     type_source = "header"
-    
+
     if not caps:
         if not ollama_client:
             raise TypeFinderError("Unknown format; Ollama fallback not configured")
@@ -167,5 +160,5 @@ def _detect_caps(
             type_source = "ollama"
         except Exception as error:
             raise TypeFinderError(f"Ollama error: {error}") from error
-            
+
     return caps, type_source

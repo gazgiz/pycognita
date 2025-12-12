@@ -1,4 +1,5 @@
-from cognita.type_finder import HeaderAnalyzer, DEFAULT_DETECTORS
+from cognita.type_finder import HeaderAnalyzer
+
 
 def test_detect_pdf():
     analyzer = HeaderAnalyzer()
@@ -7,12 +8,14 @@ def test_detect_pdf():
     assert caps.name == "document"
     assert "pdf" in caps.params["extensions"]
 
+
 def test_detect_png():
     analyzer = HeaderAnalyzer()
     data = b"\x89PNG\r\n\x1a\n\x00\x00"
     caps = analyzer.detect(data)
     assert caps.name == "image-photo"
     assert "png" in caps.params["extensions"]
+
 
 def test_detect_jpeg():
     analyzer = HeaderAnalyzer()
@@ -21,12 +24,14 @@ def test_detect_jpeg():
     assert caps.name == "image-photo"
     assert "jpg" in caps.params["extensions"]
 
+
 def test_detect_mbox():
     analyzer = HeaderAnalyzer()
     data = b"From user Fri Jul  8 12:00:00 2011\nSubject: Hi"
     caps = analyzer.detect(data)
     assert caps.name == "application-mbox"
     assert "mbox" in caps.params["extensions"]
+
 
 def test_detect_mbox_crlf():
     analyzer = HeaderAnalyzer()
@@ -37,12 +42,14 @@ def test_detect_mbox_crlf():
     assert caps.name == "application-mbox"
     assert "mbox" in caps.params["extensions"]
 
+
 def test_detect_eml():
     analyzer = HeaderAnalyzer()
     data = b"Subject: Hello\nFrom: sender@example.com\n"
     caps = analyzer.detect(data)
     assert caps.name == "message-rfc822"
     assert "eml" in caps.params["extensions"]
+
 
 def test_detect_mp4():
     analyzer = HeaderAnalyzer()
@@ -51,20 +58,23 @@ def test_detect_mp4():
     assert caps.name == "video"
     assert "mp4" in caps.params["extensions"]
 
+
 def test_detect_zip():
     analyzer = HeaderAnalyzer()
     data = b"PK\x03\x04\x0a\x00\x00\x00"
     caps = analyzer.detect(data)
-    assert caps.name == "binary-file" 
-    # Note: might be overridden by ooxml check if we crafted a specific zip, 
+    assert caps.name == "binary-file"
+    # Note: might be overridden by ooxml check if we crafted a specific zip,
     # but generic zip is binary.
+
 
 def test_detect_ooxml():
     analyzer = HeaderAnalyzer()
     # Needs to contain [Content_Types].xml or similar
     data = b"PK\x03\x04" + b"A" * 50 + b"[Content_Types].xml"
     caps = analyzer.detect(data)
-    assert caps.name == "document" # ooxml-zip maps to document caps
+    assert caps.name == "document"  # ooxml-zip maps to document caps
+
 
 def test_detect_text_document():
     analyzer = HeaderAnalyzer()
@@ -72,6 +82,7 @@ def test_detect_text_document():
     caps = analyzer.detect(data)
     assert caps.name == "document"
     assert "txt" in caps.params["extensions"]
+
 
 def test_detect_unknown():
     analyzer = HeaderAnalyzer()

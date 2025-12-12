@@ -1,8 +1,9 @@
-"""# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial"""
-from __future__ import annotations
-
+# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial
 """Narrator for plain text files."""
 
+from __future__ import annotations
+
+import contextlib
 import os
 
 from .caps import Caps
@@ -12,7 +13,7 @@ from .ollama import OllamaClient, OllamaError
 
 class TextNarrator(Narrator):
     """Reads a plain text file and uses Ollama to summarize/extract info.
-    
+
     This narrator operates on content identified as 'plain-text' or 'document'.
     It supports both capped (upstream identified) and uncapped (URI-only) modes.
     """
@@ -36,43 +37,40 @@ class TextNarrator(Narrator):
             # Basic extension check for text files
             # This list can be expanded or we could peek at content if needed.
             return uri.lower().endswith((".txt", ".md", ".csv", ".json", ".log"))
-        
+
         return False
 
     def _narrate(self, payload: object, caps: Caps | None) -> str | None:
         """Read the text file and generate a summary."""
         if not isinstance(payload, dict):
             return None
-            
+
         uri = payload.get("uri")
         data = payload.get("data")
-        
+
         text_content = ""
-        
+
         # Try to use pre-buffered data if valid text
         if data:
-            try:
+            with contextlib.suppress(Exception):
                 text_content = data.decode("utf-8")
-            except Exception:
-                # If binary data found in 'data', we might ignore it or try to re-read file
-                pass
-        
+
         # If no data or decoding failed, try reading from URI
         if not text_content and uri:
-             path = self._uri_to_path(uri)
-             if os.path.isfile(path):
-                 try:
-                     with open(path, "r", encoding="utf-8", errors="replace") as f:
-                         text_content = f.read()
-                 except Exception:
-                     pass
+            path = self._uri_to_path(uri)
+            if os.path.isfile(path):
+                try:
+                    with open(path, encoding="utf-8", errors="replace") as f:
+                        text_content = f.read()
+                except Exception:
+                    pass
 
         if not text_content:
             return "Empty or unreadable text content."
 
         if not self.ollama_client:
-             # Fallback if no LLM
-             return f"Text content ({len(text_content)} chars): {text_content[:200]}..."
+            # Fallback if no LLM
+            return f"Text content ({len(text_content)} chars): {text_content[:200]}..."
 
         prompt = (
             "Analyze this text for Knowledge Graph extraction.\n"
@@ -83,14 +81,14 @@ class TextNarrator(Narrator):
             "- [Entity] is [Attribute]\n"
             "Do NOT write paragraphs. List separate facts."
         )
-        
+
         try:
             # We limit text content to avoid context window issues if very large
             # 100kb is a safe conservative limit for now, or let Ollama truncate.
-            safe_content = text_content[:50000] 
+            safe_content = text_content[:50000]
             return self.ollama_client._request(f"{prompt}\n\nText:\n{safe_content}")
         except OllamaError as error:
-             return f"[ollama error] {error}"
+            return f"[ollama error] {error}"
 
     @staticmethod
     def _uri_to_path(uri: str) -> str:

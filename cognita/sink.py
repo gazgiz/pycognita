@@ -1,11 +1,10 @@
-"""# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial"""
-from __future__ import annotations
-
+# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial
 """Sink elements for the pipeline."""
+
+from __future__ import annotations
 
 from .caps import Caps, summarize_caps
 from .element import SinkElement
-from .pad import PadDirection
 
 
 class SilentSink(SinkElement):

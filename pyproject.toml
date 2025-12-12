@@ -40,6 +40,7 @@ extend-exclude = [
     "build",
     "dist",
 ]
+[tool.ruff.lint]
 select = [
     "E4",  # pycodestyle errors related to imports
     "E7",  # pycodestyle errors related to statements

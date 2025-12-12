@@ -1,15 +1,15 @@
-"""# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial"""
-from __future__ import annotations
-
+# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial
 """Simple byte buffer with metadata and a read cursor."""
 
-from typing import Any, Dict, Optional
+from __future__ import annotations
+
+from typing import Any
 
 
 class Buffer:
     """Minimal buffer abstraction carrying bytes plus metadata."""
 
-    def __init__(self, data: bytes, meta: Optional[Dict[str, Any]] = None):
+    def __init__(self, data: bytes, meta: dict[str, Any] | None = None):
         self._data = data
         self._pos = 0
         self.meta = meta or {}

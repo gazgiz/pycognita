@@ -1,7 +1,8 @@
 """# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial"""
+
 from __future__ import annotations
 
-from typing import Iterable, List
+from collections.abc import Iterable
 
 from .element import Element
 from .pad import PadDirection
@@ -16,7 +17,7 @@ class Pipeline:
     """
 
     def __init__(self, elements: Iterable[Element]):
-        self.elements: List[Element] = list(elements)
+        self.elements: list[Element] = list(elements)
         link_many(*self.elements)
 
     def run(self):
@@ -36,7 +37,9 @@ def link_many(*elements: Element) -> None:
     if len(elements) < 2:
         return
 
-    for upstream, downstream in zip(elements, elements[1:]):
+    import itertools
+
+    for upstream, downstream in itertools.pairwise(elements):
         src_pad = upstream.request_pad(PadDirection.SRC)
         sink_pad = downstream.request_pad(PadDirection.SINK)
         src_pad.link(sink_pad)

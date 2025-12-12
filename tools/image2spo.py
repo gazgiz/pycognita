@@ -1,6 +1,4 @@
 # SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial
-from __future__ import annotations
-
 """
 CLI tool for extracting SPO triples from images.
 
@@ -10,6 +8,8 @@ Pipeline:
 3. TripleExtractor (Text Description -> RDF Triples)
 4. SilentSink (Output Triples)
 """
+
+from __future__ import annotations
 
 import argparse
 import sys
@@ -25,7 +25,7 @@ from cognita.type_finder import TypeFinderError
 
 def build_pipeline(args: argparse.Namespace) -> Pipeline:
     """Construct the processing pipeline based on CLI arguments."""
-    
+
     # 1. Image Narrator Client
     narrator_client = OllamaClient(
         model=args.ollama_vision_capable_model,
@@ -39,12 +39,12 @@ def build_pipeline(args: argparse.Namespace) -> Pipeline:
         base_url=args.ollama_url,
         timeout=args.ollama_timeout,
     )
-    
+
     # 3. Load TBox if provided
     tbox_content = None
     if args.tbox:
         try:
-            with open(args.tbox, "r", encoding="utf-8") as f:
+            with open(args.tbox, encoding="utf-8") as f:
                 tbox_content = f.read()
         except Exception as e:
             print(f"[warning] Could not read TBox file: {e}", file=sys.stderr)
@@ -52,10 +52,7 @@ def build_pipeline(args: argparse.Namespace) -> Pipeline:
     # Build pipeline components
     source = DiscreteDataSource(args.uri)
     narrator = ImageNarrator(ollama_client=narrator_client)
-    extractor = TripleExtractor(
-        ollama_client=extractor_client,
-        tbox_template=tbox_content
-    )
+    extractor = TripleExtractor(ollama_client=extractor_client, tbox_template=tbox_content)
     sink = SilentSink()
 
     return Pipeline([source, narrator, extractor, sink])
@@ -64,32 +61,32 @@ def build_pipeline(args: argparse.Namespace) -> Pipeline:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Extract SPO triples from an image.")
     parser.add_argument("uri", help="URI of the image to process")
-    
+
     parser.add_argument(
         "--ollama-url",
         default="http://localhost:11434",
         help="Base URL for Ollama API",
     )
-    
+
     parser.add_argument(
         "--ollama-vision-capable-model",
         default="llava",
         help="Ollama model for image description (e.g. llava, qwen2.5vl)",
     )
-    
+
     parser.add_argument(
         "--ollama-model",
         default="mistral",
         help="Ollama model for triple extraction (e.g. mistral, llama3)",
     )
-    
+
     parser.add_argument(
         "--ollama-timeout",
         type=int,
         default=60,
         help="Timeout for Ollama requests in seconds",
     )
-    
+
     parser.add_argument(
         "--tbox",
         help="Path to TBox/Ontology file to guide extraction",
@@ -113,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
         # If upstream failed silently or produced nothing
         print("[info] No output produced (check models or input)", file=sys.stderr)
         return 1
-        
+
     return 0
 
 

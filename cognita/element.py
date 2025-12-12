@@ -1,7 +1,7 @@
-"""# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial"""
-from __future__ import annotations
+# SPDX-License-Identifier: GPL-3.0-or-later OR LicenseRef-Commercial
+"""Base Element class for pipeline processing steps.
 
-"""Minimal GStreamer-inspired element model with dynamic pads only.
+Minimal GStreamer-inspired element model with dynamic pads only.
 
 Intent:
   - Keep the data path explicit: pads link elements, buffers travel via `on_buffer`.
@@ -15,8 +15,7 @@ Defined here:
   - SourceElement / SinkElement: role-constrained variants of Element.
 """
 
-from dataclasses import dataclass
-from typing import List
+from __future__ import annotations
 
 from .caps import Caps
 from .pad import Pad, PadDirection
@@ -37,7 +36,7 @@ class Element:
     """
 
     def __init__(self) -> None:
-        self._pads: List[Pad] = []
+        self._pads: list[Pad] = []
 
     def request_pad(self, direction: PadDirection, name: str | None = None) -> Pad:
         """Create a new dynamic pad.
@@ -51,7 +50,7 @@ class Element:
         return pad
 
     @property
-    def pads(self) -> List[Pad]:
+    def pads(self) -> list[Pad]:
         """Return a shallow copy of pads to avoid external mutation."""
         return list(self._pads)
 
@@ -62,9 +61,11 @@ class Element:
         """Handle a buffer arriving on a sink pad."""
         raise NotImplementedError
 
-    def handle_event(self, pad: Pad, event: str, payload: object | None = None) -> None:  # pragma: no cover - base hook
+    def handle_event(
+        self, pad: Pad, event: str, payload: object | None = None
+    ) -> None:  # pragma: no cover - base hook
         """Handle a generic pad event (e.g., caps negotiation).
-        
+
         Raises:
             CapsNegotiationError: If incompatible caps are received.
         """
