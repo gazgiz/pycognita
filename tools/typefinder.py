@@ -8,7 +8,7 @@ import sys
 from cognita.image_narrator import ImageNarrator
 from cognita.ollama import OllamaClient
 from cognita.pipeline import Pipeline
-from cognita.sink import SilentSink
+from cognita.sink import TypeCaptureSink
 from cognita.source import DiscreteDataSource
 from cognita.type_finder import TypeFinderError
 
@@ -29,7 +29,7 @@ def build_pipeline(args: argparse.Namespace) -> Pipeline:
                 args.uri, prebuffer_bytes=args.prebuffer_bytes, ollama_client=ollama_client
             ),
             ImageNarrator(ollama_client=ollama_client),
-            SilentSink(),
+            TypeCaptureSink(),
         ]
     )
 
