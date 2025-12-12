@@ -180,4 +180,25 @@ def test_extraction_prompt_selection():
     # 3. Plain Text (Generic)
     text_caps = Caps("text/plain", "plain-text")
     rules_text = extractor._get_extraction_rules(text_caps)
+    rules_text = extractor._get_extraction_rules(text_caps)
     assert "Extract entities and relationships" in rules_text
+
+def test_structured_list_prompt():
+    """Verify prompt includes special rules for structured lists."""
+    mock_ollama = MagicMock()
+    mock_ollama._request.return_value = "..."
+    extractor = TripleExtractor(ollama_client=mock_ollama)
+    
+    # Use generic caps (plain-text) to trigger the fallback rules where our instruction lives
+    sink_pad = MockPad(PadDirection.SINK)
+    sink_pad.caps = Caps("text/plain", "plain-text")
+    
+    # Use text > 50 chars (default min_text_length)
+    extractor.on_buffer(sink_pad, "This input needs to be long enough to trigger the extractor logic." * 2)
+    
+    args, _ = mock_ollama._request.call_args
+    prompt = args[0]
+    
+    assert "ATOMIC OBJECT RULE" in prompt
+    assert "ex:lightingCondition" in prompt
+    assert "CRITICAL: Do NOT use the word 'mentions'" in prompt
