@@ -44,11 +44,7 @@ class TimeSeriesDataSource(SourceElement):
             self.header_analyzer = HeaderAnalyzer()
 
     def _read_prebuffer(self) -> bytes:
-        if self.uri.startswith("file://"):
-            parsed = urllib.parse.urlparse(self.uri)
-            path = urllib.request.url2pathname(parsed.path)
-        else:
-            path = self.uri
+        path = _resolve_file_path(self.uri)
             
         if not os.path.isfile(path):
             raise FileNotFoundError(f"resource does not exist: {self.uri}")
@@ -97,11 +93,7 @@ class DiscreteDataSource(SourceElement):
             self.header_analyzer = HeaderAnalyzer()
 
     def _read_detection_sample(self) -> bytes:
-        if self.uri.startswith("file://"):
-            parsed = urllib.parse.urlparse(self.uri)
-            path = urllib.request.url2pathname(parsed.path)
-        else:
-            path = self.uri
+        path = _resolve_file_path(self.uri)
             
         if not os.path.isfile(path):
             raise FileNotFoundError(f"resource does not exist: {self.uri}")
@@ -130,6 +122,27 @@ class DiscreteDataSource(SourceElement):
                 # Type safe now that we imported Caps or handle it properly
                 pad.set_caps(caps, propagate=True)
                 pad.push(payload)
+
+
+def _resolve_file_path(uri: str) -> str:
+    """Robustly resolve file:// URI to local path, handling both standard and naive Windows formats."""
+    if not uri.startswith("file://"):
+        return uri
+        
+    # 1. Try standard parsing (handles encoding, / separators correctly)
+    parsed = urllib.parse.urlparse(uri)
+    standard_path = urllib.request.url2pathname(parsed.path)
+    if os.path.exists(standard_path):
+        return standard_path
+        
+    # 2. Fallback: naive prefix stripping (handles 'file://C:\path' with backslashes)
+    naive_path = uri[len("file://"):]
+    if os.path.exists(naive_path):
+        return naive_path
+
+    # 3. If neither exists, prefer standard path for better error messages, 
+    # unless it's empty (which happens if urlparse failed on backslashes)
+    return standard_path if standard_path else naive_path
 
 
 def _detect_caps(
