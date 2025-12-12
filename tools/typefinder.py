@@ -61,10 +61,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         sink_output = pipeline.run()
     except TypeFinderError as error:
-        print(f"[error] {error}")
+        print(f"[error] {error}", file=sys.stderr)
         return 1
     except FileNotFoundError as error:
-        print(f"[error] {error}")
+        print(f"[error] {error}", file=sys.stderr)
         return 1
 
     if sink_output:
