@@ -70,7 +70,8 @@ def main(argv: list[str] | None = None) -> int:
     if sink_output:
         print(sink_output)
     else:
-        print("[error] sink produced no output")
+        print("[error] sink produced no output", file=sys.stderr)
+        return 1
     return 0
 
 
