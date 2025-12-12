@@ -4,6 +4,8 @@ from __future__ import annotations
 """Source element variants for time-series vs discrete data, using URI input."""
 
 import os
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass
 
 from .element import SourceElement
@@ -43,7 +45,8 @@ class TimeSeriesDataSource(SourceElement):
 
     def _read_prebuffer(self) -> bytes:
         if self.uri.startswith("file://"):
-            path = self.uri[len("file://") :]
+            parsed = urllib.parse.urlparse(self.uri)
+            path = urllib.request.url2pathname(parsed.path)
         else:
             path = self.uri
             
@@ -95,7 +98,8 @@ class DiscreteDataSource(SourceElement):
 
     def _read_detection_sample(self) -> bytes:
         if self.uri.startswith("file://"):
-            path = self.uri[len("file://") :]
+            parsed = urllib.parse.urlparse(self.uri)
+            path = urllib.request.url2pathname(parsed.path)
         else:
             path = self.uri
             
