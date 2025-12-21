@@ -149,131 +149,39 @@ class TripleExtractor(Element):
 
     def _get_extraction_rules(self, caps: Caps | None) -> str:
         """Return content-specific extraction rules."""
+        from .prompt_loader import load_prompt
 
-        # Default Generic Rules
-        base_rule = (
-            "1. Analyze the text to extract Subject-Predicate-Object triples.\n"
-            "2. The Subject IRI is provided.\n"
-        )
-
-        if not caps:
-            return base_rule + (
-                "3. Extract entities and relationships.\n"
-                "4. Use standard vocabularies (schema, ex).\n"
-            )
-
-        # MAIL Rules
-        if caps.name in ("application-mbox", "message-rfc822", "mail"):
-            return base_rule + (
-                "3. The Subject IRI represents an **Email Message**.\n"
-                "4. Extract email metadata:\n"
-                "   - `schema:sender` (Person or Organization)\n"
-                "   - `schema:recipient`\n"
-                "   - `schema:dateSent`\n"
-                "   - `schema:about` (Subject Line topic)\n"
-                "5. Extract content details:\n"
-                "   - `schema:mentions` (Entities mentioned in body)\n"
-                "   - `ex:hasTopic`\n"
-                "6. Example:\n"
-                "   `<SubjectIRI> schema:sender <ex:Alice> .`\n"
-                '   `<SubjectIRI> schema:about "Project Update" .`\n'
-            )
-
-        # IMAGE Rules (Default assumption for now if not mail, or check explicitly)
-        # If caps name implies image/video/visual or if coming from image narrator
-        # (ImageNarrator outputs NARRATION_CAPS which inherits plain-text but has description 'Machine-generated...')
-        # We can check specific caps or just fallback to generic?
-        # The user issue was applying image rules to mbox.
-        # So we should be specific for image, fallback for text.
-
-        # We don't have explicit IMAGE_CAPS passed here usually (it's NARRATION_CAPS).
-        # We rely on checking if it's NOT mail/text, OR if we can infer visual.
-        # But wait, ImageNarrator output caps are NARRATION_CAPS.
-        # How to distinguish Image Narration from Text Narration?
-        # In `ImageNarrator`, we output `NARRATION_CAPS`.
-        # Maybe we should check if the payload had `image_description`?
-        # But we don't have payload here, just caps.
-        # For now, let's keep the existing "Image" rules as a specific branch if we can detect it,
-        # OR default to a GENERIC ruleset that isn't image-biased.
-        # The PROMPTS are:
-        # 1. MAIL
-        # 2. VISUAL (if we know it's visual)
-        # 3. GENERIC TEXT (default)
-
-        # Since currently we only really have Image and Mail as main use cases:
-        # Let's assume Generic unless Mail? But previous default was Image.
-        return base_rule + (
-            "3. Extract entities and relationships.\n"
-            "4. Link main entities to the Subject IRI using suitable predicates (e.g., schema:mentions, schema:about, ex:depicts).\n"
-            "5. Use standard vocabularies.\n"
-            "6. SPECIAL RULE FOR LISTS/STRUCTURED DATA:\n"
-            "   - If input is a bulleted list of keys/values (e.g., '- Delivery Date is June 3'), act as a metadata parser.\n"
-            "   - Create a DIRECT camelCase predicate that matches the MEANING of the key.\n"
-            "   - VALIDATION TABLE (Follow this strictly):\n"
-            "     | Input Line                  | Context        | BAD Predicate                | GOOD Predicate            |\n"
-            "     |-----------------------------|----------------|------------------------------|---------------------------|\n"
-            "     | - Total Amount is 20        | Receipt/Price  | ex:mentions-ex:TotalAmount   | ex:totalAmount            |\n"
-            "     | - Subject is Hallway        | Scene/Desc     | ex:totalAmount               | ex:mainSubject            |\n"
-            "     | - Atmosphere is busy        | Scene/Desc     | ex:mentions-Atmosphere       | ex:atmosphere             |\n"
-            "     | - Payment Method is Card    | Receipt/Action | ex:paymentMethod-Card        | ex:paymentMethod          |\n"
-            "   - ATOMIC OBJECT RULE (CRITICAL):\n"
-            "     - The Object part of the triple MUST be a single specific Entity, Value, or Keyword.\n"
-            "     - NEVER use a full sentence as the Object.\n"
-            "     - Bad: `<S> ex:description 'The hallway is well-lit'.`\n"
-            "     - Good: `<S> ex:lightingCondition 'Well-lit'.`\n"
-            "     - If the text is a sentence, DECOMPOSE it into granular triples.\n"
-            "   - CRITICAL: Do NOT use the word 'mentions' in any created predicate. Forbidden: `ex:mentions-...`\n"
-            "   - Extract ONLY the Value. Remove 'is', 'via'.\n"
-        )
+        # Load appropriate rules based on caps
+        if caps and caps.name in ("application-mbox", "message-rfc822", "mail"):
+             return load_prompt("triple_extractor_mail.txt")
+        
+        # Default/Generic rules
+        return load_prompt("triple_extractor_default.txt")
 
     def _extract_triples(self, text: str, subject_iri: str, caps: Caps | None) -> str:
+        from .prompt_loader import load_prompt
+        
         rules = self._get_extraction_rules(caps)
 
-        # If we suspect visual content (e.g. from existing specific prompt logic), we might want to inject specific visual rules.
-        # But for now, let's stick to the safe Mail vs Generic split.
-        # Unless the user specifically wants the Image prompt back for images.
-        # The user said: "caps에 따라서 프롬프트를 달리 해보자."
-
-        # Re-introducing Image Rules if caps are generic?
-        # If we want to support existing behavior for images, we need to know it's an image.
-        # But the input to TripleExtractor is TEXT (the narration). The caps *should* reflect the source.
-        # ImageNarrator should ideally propagate `broader: image` or similar metadata?
-        # Currently `ImageNarrator` emits `NARRATION_CAPS` (plain-text).
-        # Let's add a "Visual" check if possible, or stick to safe Generic.
-
-        # For this specific task (fixing mbox), having a dedicated Mail prompt fixes the hallucination.
-        # Restoring the "Image" prompt requires identifying "Image".
-        # If I can't identify Image easily from current Caps, Generic is safer than Image-for-all.
-
-        # Wait, the user command `image2spo` worked fine with the old prompt.
-        # I should try to preserve that behavior for `image2spo` while using Mail for `mbox2spo`.
-
-        # Ideally, ImageNarrator should output caps that say "Narration of Image".
-        # But assuming Generic is safer. Let's start with Generic + Mail.
-
-        prompt = (
-            "You are a Knowledge Graph extractor. "
-            "Analyze the text below and extract Subject-Predicate-Object triples.\n"
-            f"Subject IRI: <{subject_iri}>\n"
-        )
-
+        # Build TBox section
         if self.tbox_template:
-            prompt += f"Strictly use this Ontology (TBox) for predicates and classes:\n{self.tbox_template}\n"
+            tbox_instruction = f"Strictly use this Ontology (TBox) for predicates and classes:\n{self.tbox_template}\n"
         else:
-            prompt += (
+            tbox_instruction = (
                 "Use standard vocabularies (e.g., schema:, foaf:, dc:) for predicates. "
                 "For unknown predicates, use a generic namespace ex:.\n"
             )
 
-        prompt += f"\nExtraction Rules:\n{rules}"
-
-        prompt += (
-            "\nOutput Guidelines:\n"
-            "1. Format ONLY as valid Turtle (TTL).\n"
-            "2. Do not emit markdown blocks (```turtle ... ```).\n"
-            "3. If no triples can be extracted, output nothing.\n"
-            "4. Ensure all prefixes are defined (@prefix ...).\n\n"
-            f"Text content:\n{text}"
+        # Load system prompt template
+        system_prompt = load_prompt("triple_extractor_system.txt")
+        
+        # Format the prompt
+        # We need to map the template variables: {subject_iri}, {tbox_instruction}, {rules}, {text}
+        prompt = system_prompt.format(
+            subject_iri=subject_iri,
+            tbox_instruction=tbox_instruction,
+            rules=rules,
+            text=text
         )
 
         return self.ollama_client._request(prompt)

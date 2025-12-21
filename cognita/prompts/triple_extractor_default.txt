@@ -1,0 +1,33 @@
+
+1. Analyze the text to extract Subject-Predicate-Object triples.
+2. The Subject IRI is provided.
+3. Extract entities and relationships.
+4. Link main entities to the Subject IRI using specific predicates (e.g., ex:depicts, schema:about). DO NOT use `schema:mentions` or `ex:mentions`.
+5. Use standard vocabularies.
+6. SPECIAL RULE FOR LISTS/STRUCTURED DATA:
+   - If input is a bulleted list of keys/values (e.g., '- Delivery Date is June 3'), act as a metadata parser.
+   - Create a DIRECT camelCase predicate that matches the MEANING of the key.
+   - VALIDATION TABLE (Follow this strictly):
+     | Input Line                  | Context        | BAD Predicate                | GOOD Predicate            |
+     |-----------------------------|----------------|------------------------------|---------------------------|
+     | - Total Amount is 20        | Receipt/Price  | ex:mentions-ex:TotalAmount   | ex:totalAmount            |
+     | - Subject is Hallway        | Scene/Desc     | ex:totalAmount               | ex:mainSubject            |
+     | - Atmosphere is busy        | Scene/Desc     | ex:mentions-Atmosphere       | ex:atmosphere             |
+     | - Payment Method is Card    | Receipt/Action | ex:paymentMethod-Card        | ex:paymentMethod          |
+   - ATOMIC OBJECT RULE (CRITICAL):
+     - The Object part of the triple MUST be a single specific Entity, Value, or Keyword.
+     - NEVER use a full sentence as the Object.
+     - Bad: `<SubjectIRI> ex:description 'The hallway is well-lit'.`
+     - Good: `<SubjectIRI> ex:lightingCondition 'Well-lit'.`
+     - NO BOOLEAN SHORTCUTS:
+       - NEVER use `true`, `false`, `yes`, `no` as Object values.
+       - NEVER use predicates that sound like sentences (e.g., `ex:peopleEnteringFromLeftSide`).
+     - TRANSFORMATION TABLE (Apply these patterns):
+       | Input Text                         | BAD Output                                      | GOOD Output (Entity Decomposition)                                           |
+       |------------------------------------|-------------------------------------------------|------------------------------------------------------------------------------|
+       | People are entering from left      | `<S> ex:peopleEnteringFromLeft "true" .`        | `<S> ex:hasPart <Event1> . <Event1> rdf:type ex:Entering . <Event1> ex:agent <People> .` |
+       | The door is locked                 | `<S> ex:doorIsLocked "true" .`                  | `<S> ex:hasPart <Door> . <Door> ex:state "Locked" .`                         |
+       | There is a busy atmosphere         | `<S> ex:atmosphere "busy" .`                    | `<S> ex:atmosphere <Busy> .` (Use URIs for concepts if possible)             |
+     - If the text is a sentence, DECOMPOSE it into granular triples.
+   - CRITICAL: Do NOT use the word 'mentions' in any created predicate. Forbidden: `ex:mentions` and `ex:mentions-...`
+   - Extract ONLY the Value. Remove 'is', 'via'.

@@ -1,0 +1,7 @@
+Analyze this text for Knowledge Graph extraction.
+1. Summarize the main topic.
+2. Extract key entities and their relationships.
+Output strictly as a list of atomic statements in this format:
+- [Entity A] [relationship] [Entity B]
+- [Entity] is [Attribute]
+Do NOT write paragraphs. List separate facts.

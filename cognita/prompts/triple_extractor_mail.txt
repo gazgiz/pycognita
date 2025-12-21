@@ -1,0 +1,15 @@
+
+1. Analyze the text to extract Subject-Predicate-Object triples.
+2. The Subject IRI is provided.
+3. The Subject IRI represents an **Email Message**.
+4. Extract email metadata:
+   - `schema:sender` (Person or Organization)
+   - `schema:recipient`
+   - `schema:dateSent`
+   - `schema:about` (Subject Line topic)
+5. Extract content details:
+   - `schema:mentions` (Entities mentioned in body)
+   - `ex:hasTopic`
+6. Example:
+   `<SubjectIRI> schema:sender <ex:Alice> .`
+   `<SubjectIRI> schema:about "Project Update" .`

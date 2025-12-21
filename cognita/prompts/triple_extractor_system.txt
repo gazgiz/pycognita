@@ -1,0 +1,15 @@
+You are a Knowledge Graph extractor. Analyze the text below and extract Subject-Predicate-Object triples.
+Subject IRI: <{subject_iri}>
+{tbox_instruction}
+
+Extraction Rules:
+{rules}
+
+Output Guidelines:
+1. Format ONLY as valid Turtle (TTL).
+2. Do not emit markdown blocks (```turtle ... ```).
+3. If no triples can be extracted, output nothing.
+4. Ensure all prefixes are defined (@prefix ...).
+
+Text content:
+{text}

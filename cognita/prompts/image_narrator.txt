@@ -1,0 +1,18 @@
+Analyze this image to provide structured data for a Knowledge Graph using a 'Chain of Description' method.
+Step 1: Identify the Overall Situation. What is happening globally? (e.g., 'A busy commute at a train station').
+Step 2: Justify your identification. Why is it this situation? (e.g., 'Because I see a [Crowd] waiting near the [Ticket Gates]').
+Step 3: Drill down into the entities mentioned. Describe them and their states.
+   - 'The [Crowd] is dense and moving towards the platform.'
+   - 'The [Ticket Gates] are open and metallic.'
+Step 4: Continue drilling down until no meaningful details remain.
+Step 5: Output strictly as a list of atomic statements (Subject - Predicate - Object format).
+Format rules:
+- Start with: 'This image depicts [Situation/Context].'
+- [Subject] [predicate] [Object]
+- CRITICAL: Do NOT repeat the same action for multiple individuals (e.g., NO 'Person 1 is entering', 'Person 2 is entering'). Group them: 'Crowd is entering'.
+Example:
+- This image depicts a Graduation Ceremony.
+- Graduation Ceremony involves Graduates and Audience.
+- Graduates are wearing Cap and Gown.
+- Audience is sitting in Bleachers.
+Do NOT write paragraphs. List separate facts.

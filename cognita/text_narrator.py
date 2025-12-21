@@ -72,15 +72,8 @@ class TextNarrator(Narrator):
             # Fallback if no LLM
             return f"Text content ({len(text_content)} chars): {text_content[:200]}..."
 
-        prompt = (
-            "Analyze this text for Knowledge Graph extraction.\n"
-            "1. Summarize the main topic.\n"
-            "2. Extract key entities and their relationships.\n"
-            "Output strictly as a list of atomic statements in this format:\n"
-            "- [Entity A] [relationship] [Entity B]\n"
-            "- [Entity] is [Attribute]\n"
-            "Do NOT write paragraphs. List separate facts."
-        )
+        from .prompt_loader import load_prompt
+        prompt = load_prompt("text_narrator.txt")
 
         try:
             # We limit text content to avoid context window issues if very large
